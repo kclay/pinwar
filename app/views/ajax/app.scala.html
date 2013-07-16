@@ -1,0 +1,156 @@
+@(implicit r: RequestHeader)
+@import tags._
+    @bars(amount: Int) = {
+
+       @for(index <- 1 to amount) {
+           <div class="bar@index"><img src="@asset("images/progress-bar.png")"/></div>
+        }
+    }
+
+
+    @war(side: String, avatar: String) = {
+        <div class="@side profile">
+            <img src="@asset(avatar)" class="avatar"/>
+            <div class="info">
+                <div class="bold username">
+                    Ray Hernandez
+                </div>
+                <div class="stats">
+                    <img src="@asset("images/icon-wins.png")"/>
+                    Wins
+                    <span id="wins">0</span>
+
+                    <img src="@asset("images/icon-loses.png")"/>
+                    Loses
+                    <span id="wins">0</span>
+
+
+                </div>
+                <div class="points">
+                @bars(10)
+                </div>
+            </div>
+        </div>
+
+    }
+<link rel="stylesheet" media="screen" href="@routes.Assets.at("stylesheets/app.css").absoluteURL()">
+<div id="pinwar">
+
+    <div id="wrapper">
+
+        <div id="signup" class="view">
+
+            <div class="centeredWithinWrapper">
+                <div class="left profile">
+                    <img src="@asset("images/avatar.jpg")" class="avatar"/>
+                    <div class="info">
+                        <div class="bold username">
+                            Ray Hernandez
+                        </div>
+                        <div class="medium">
+                            are you ready for a
+
+                        </div>
+                        <div class="medium bold">
+                            Pinterest Deathmatch?
+                        </div>
+                    </div>
+                </div>
+
+                <div class="right bold">
+
+                    <div class="email">
+                        <div class="inner">
+                            <div>Beatup your friends &amp; Win prizes for doing it!</div>
+
+                            <form>
+                                <input type="text" placeholder="Enter your Email to Get Started"/>
+                                <input type="submit" value="Start a Battle"/>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="current-pins" class="details">
+                1,385,039 Pins
+            </div>
+
+        </div>
+
+        <div id="overview" class="view hidden">
+            <div class="centeredWithinWrapper">
+                <div class="left profile">
+                    <img src="@asset("images/avatar.jpg")" class="avatar"/>
+                    <div class="info">
+                        <div class="bold username">
+                            Ray Hernandez
+                        </div>
+                        <div class="stats">
+                            <img src="@asset("images/icon-wins.png")"/>
+                            Wins
+                            <span id="wins">0</span>
+
+                            <img src="@asset("images/icon-loses.png")"/>
+                            Loses
+                            <span id="wins">0</span>
+
+
+                        </div>
+                        <div class="rank up">
+                            <div class="inner">
+                                <img src="@asset("images/icon-trophy.png")"/> Current Rank - <span>5,689</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <div class="vs">
+                    <img src="@asset("images/vs.png")"/>
+                </div>
+                <div class="right bold">
+
+                    <div class="email">
+                        <div class="inner">
+                            <div>Invite a Friend to Battle</div>
+
+                            <form>
+                                <input type="text" placeholder="Enter Friend's Email"/>
+                                <input type="submit" value="Invite"/>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="details">
+                or you can <a href="#">Learn How to Fight</a>
+            </div>
+        </div>
+
+
+        <div id="war" class="view hidden">
+            <div class="centeredWithinWrapper">
+
+                @war("left", "images/avatar.jpg")
+
+                <div class="vs">
+                    <img src="@asset("images/vs.png")"/>
+                </div>
+                @war("right", "images/avatar2.jpg")
+            </div>
+
+            <div id="sound" class="details">
+                <a href="#">toggle</a>
+            </div>
+        </div>
+    </div>
+    <div id="feedback">
+        <div class="inner">
+            <span>Your friend <strong>Keyston Clay</strong> wants to fight you!</span>
+            <input type="button" value="Accept" class="positive"/>
+            <input type="button" value="Decline" class="negative"/>
+        </div>
+    </div>
+
+</div>

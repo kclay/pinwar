@@ -1,0 +1,36 @@
+{
+    "manifest_version": 2,
+
+    "name": "Pinterest Battle",
+    "description": "This extension demonstrates a 'browser action' with kittens.",
+    "version": "1.0",
+
+    "browser_action": {
+        "default_icon": "icon.png",
+        "default_popup": "popup.html"
+    },
+    "background": {
+        "scripts": ["app/background.js"]
+    },
+    "permissions": [
+        "webRequest",
+        "storage",
+        "tabs", "http://pinterest.com/*", "https://api.pinterest.com/*", "http://localhost:9000/*"
+    ],
+    "content_scripts": [
+        {
+            "matches": ["http://pinterest.com/*"],
+            "run_at": "document_end",
+            "js": [
+                "vendor/jquery.js",
+                "vendor/underscore.js",
+                "vendor/backbone.js",
+                "app/boot.js",
+                "app/platforms/chrome.js",
+                "app/signup.js", "app/app.js" ]
+        }
+    ],
+    "web_accessible_resources": ["app/inject/support.js", "app/inject/ajax_hooks.js"]
+
+
+}

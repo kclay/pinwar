@@ -1,0 +1,419 @@
+@import url(http://fonts.googleapis.com/css?family=Montserrat:400,700);
+@import "_mixins";
+@import "_vars";
+@import "_common";
+
+.font {
+  font-family: 'Montserrat', sans-serif;
+}
+
+.font-bold {
+  color: @lightTextColor;
+  font-weight: bold;
+  .font;
+}
+
+.App .headerBackground, .App .headerContainer {
+  top: @height;
+
+}
+
+.App.full .appContent {
+  padding-top: 45px + @height;
+}
+
+.with-profile-info {
+  .profile {
+
+    position: relative;
+    padding-top: 10px;
+    .info {
+
+      padding-top: 11px;
+    }
+    img.avatar {
+
+      display: inline-block;
+    }
+  }
+  .left {
+    width: 40%;
+    float: left;
+    &.profile .info {
+      float: left;
+    }
+    img.avatar {
+      float: left;
+      margin-right: @profileImageMargin;
+    }
+
+  }
+  .right {
+    float: right;
+
+    width: 60%;
+    &.profile {
+      text-align: right;
+
+      .info {
+        float: right;
+      }
+    }
+    img.avatar {
+      float: right;
+      margin-left: @profileImageMargin;
+    }
+  }
+}
+
+#pinwar {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 99999;
+
+  #wrapper {
+    background: #ffffff;
+    z-index: 10;
+    position: relative;
+  }
+  /* Use clearfix class on parent to clear nested columns,
+   or wrap each row of columns in a <div class="row"> */
+  .clearfix:before,
+  .clearfix:after,
+  .row:before,
+  .row:after {
+    content: '\0020';
+    display: block;
+    overflow: hidden;
+    visibility: hidden;
+    width: 0;
+    height: 0;
+  }
+  .row:after,
+  .clearfix:after {
+    clear: both;
+  }
+  .row,
+  .clearfix {
+    zoom: 1;
+  }
+
+  /* You can also use a <br class="clear" /> to clear columns */
+  .clear {
+    clear: both;
+    display: block;
+    overflow: hidden;
+    visibility: hidden;
+    width: 0;
+    height: 0;
+  }
+
+  .view {
+    position: relative;
+    .clearfix;
+    height: @height - @borderHeight;
+  }
+  border-bottom: @borderHeight solid @red;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased; /* Fix for webkit rendering */
+  -webkit-text-size-adjust: 100%;
+  margin: 0px;
+  padding: 0px;
+  font-family: 'Montserrat', sans-serif;
+  color: @textColor;
+  font-size: @textNormal;
+  height: @height - @borderHeight;
+  input[type="text"], input[type="submit"] {
+    .font-bold;
+    font-size: @textSmall;
+  }
+
+  .hidden {
+    display: none;
+  }
+
+  .small {
+    font-size: @textSmall;
+
+  }
+  .medium {
+    font-size: @textMedium;
+  }
+
+  .bold {
+    font-weight: bold;
+  }
+
+  .username {
+
+    color: #453c44;
+    font-weight: bold;
+    font-size: @usernameTextSize;
+  }
+
+  ::-webkit-input-placeholder {
+    .font-bold;
+  }
+
+  .details {
+    position: absolute;
+    bottom: 0px;
+    right: 0px;
+    padding: 9px;
+    padding-bottom: 2px;
+    background: @red;
+    font-size: @textSmall;
+    color: white;
+
+    &#sound {
+      width: 40px;
+      padding: 9px;
+      a {
+        display: block;
+        width: 17px;
+        height: 17px;
+        text-indent: -99999px;
+        margin: 0 auto;
+        background: url('../images/icon-sound.png') no-repeat;
+      }
+    }
+
+    padding-right: 50px;
+    a, a:hover, a:visited, a:active {
+      color: white;
+      text-decoration: underline;
+      font-size: @textSmall;
+    }
+  }
+
+  #signup {
+
+
+    .with-profile-info;
+    .email .inner {
+      border-left: #bebebe solid thin;
+    }
+    .username {
+      color: @red;
+    }
+
+  }
+
+  .email {
+
+    .inner {
+
+      margin-top: 20px;
+
+      height: 95px;
+      padding-left: 5%;
+
+      div {
+        margin-bottom: 16px;
+
+      }
+    }
+
+    input[type="text"] {
+      border: none;
+
+      background: url('../images/email-input.png') no-repeat;
+      width: @emailInputWidth - @emailPaddingLeft;
+      height: 41px;
+      padding-left: @emailPaddingLeft;
+    }
+    input[type="submit"] {
+      margin-top: -2px;
+      background: #00bf4d;
+      border: none;
+
+      color: #ffffff;
+      padding-left: 15px;
+      padding-right: 15px;
+      height: 41px;
+    }
+
+  }
+
+  .vs {
+    width: 20%;
+    position: relative;
+    margin: 0 auto;
+    height: @height;
+    img {
+
+      padding-top: (@height - 67px);
+
+      width: 111px;
+      display: block;
+      margin: 0 auto;
+    }
+  }
+  .stats {
+    img {
+      display: inline-block;
+
+      vertical-align: baseline;
+    }
+    color: #7e7e7e;
+    .medium;
+    span {
+      color: #453c44;
+      font-weight: bold;
+      margin-right: 25px;
+    }
+  }
+  #overview {
+
+    .with-profile-info;
+
+    input[type="text"] {
+      background: url('../images/email-input-small.png') no-repeat;
+      width: @emailInputSmallWidth - @emailPaddingLeft;
+    }
+
+    .right {
+      width: 40%;
+    }
+
+    .rank {
+      .box;
+      position: absolute;
+      bottom: 0px;
+      span {
+        margin-right: 40px;
+      }
+
+      .inner {
+        background-position: center right;
+        background-repeat: no-repeat;
+      }
+      &.up {
+        .inner {
+          background-image: url('../images/icon-rank-up.png');
+        }
+
+      }
+      &.down {
+        .inner {
+          background-image: url('../images/icon-down.png');
+
+        }
+
+      }
+
+    }
+  }
+
+  #war {
+    .with-profile-info;
+    .profile {
+      width: @profileImageWidth + @profileImageMargin + ((@barWidth + @barMargin) * @barCount)- @barMargin;
+
+      &.right {
+        margin-top: @height * -1;
+      }
+    }
+  }
+
+  #feedback {
+    position: absolute;
+    display: table;
+    .slideDown(-@height);
+    width: 100%;
+    background: #333333;
+    height: @feedbackHeight;
+    color: white;
+    clear: both;
+    text-align: center;
+    span {
+      display: inline-block;
+      margin-right: 10px;
+    }
+    .inner {
+      display: table-cell;
+      vertical-align: middle;
+    }
+  }
+
+  // points
+
+  .left {
+    .points >div {
+      float: left;
+      margin-right: @barMargin;
+      &:last-child {
+        margin-right: 0px;
+      }
+    }
+  }
+  .points {
+    padding-top: 9px;
+    img {
+      height: 0%;
+    }
+
+  }
+  .right {
+    .points >div {
+      float: right;
+      margin-left: @barMargin;
+      &:last-child {
+        margin-left: 0px;
+      }
+    }
+  }
+
+  .barX(@index,@color: #bfbebe) when (@index>0) {
+    .bar@{index} {
+
+      width: @barWidth;
+      height: 43px;
+      background: lighten(@color,(@index - 1) * 2.5);
+    }
+
+    //.barX(@index - 1,#ff0000);
+  }
+  .barX(10);
+  .barX(9);
+  .barX(8);
+  .barX(7);
+  .barX(6);
+  .barX(5);
+  .barX(4);
+  .barX(3);
+  .barX(2);
+  .barX(1);
+
+}
+
+.slideDown(@y,@duration:@slideDownDuration) {
+  transform: translate3d(0, @y, 0);
+  -webkit-transform: translate3d(0, @y, 0);
+  -webkit-transition: all @duration ease-in;
+  -moz-transition: all @duration ease-in;
+  -ms-transition: all @duration ease-in;
+  -o-transition: all@duration ease-in;
+  transition: all @duration ease-in;
+}
+
+body.feedback {
+
+  .App .headerBackground, .App .headerContainer {
+
+    .slideDown(@feedbackHeight)
+
+  }
+
+  .App.full .appContent {
+
+    .slideDown(@feedbackHeight)
+  }
+
+  #pinwar #feedback {
+
+    .slideDown(@borderHeight);
+
+  }
+}
