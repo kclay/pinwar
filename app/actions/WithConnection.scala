@@ -12,8 +12,9 @@ import play.api.mvc._
 
 trait WithDatabase {
 
-  def Session(f: Connection => Request[AnyContent] => Result) = {
-
+  def Session(f: Request[AnyContent] => Result) = Action {
+    implicit request =>
+      f(request)
   }
 
 }

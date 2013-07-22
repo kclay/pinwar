@@ -1,8 +1,40 @@
 @import "_vars";
+
+.medium {
+  font-size: @textMedium;
+}
+
 #pinwar {
-  input[type="button"] {
+
+  .hidden {
+    display: none;
+  }
+
+  .small {
+    font-size: @textSmall;
+  }
+
+  .medium {
+    font-size: @textMedium;
+  }
+
+  .bold {
+    font-weight: bold;
+  }
+
+  .username {
+
+    color: #453c44;
+    font-weight: bold;
+    font-size: @usernameTextSize;
+  }
+
+  a.button {
+    display: inline-block;
+  }
+  input[type="button"], a.button {
     color: white;
-    padding: 6px 16px;
+
     border: none;
     font-size: @textSmall;
 
@@ -12,5 +44,8 @@
     &.negative {
       background: #7e7e7e;
     }
+  }
+  input[type="button"] {
+    padding: 6px 16px;
   }
 }

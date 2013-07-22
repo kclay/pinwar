@@ -8,6 +8,9 @@ GET         /                               controllers.Application.index
 GET         /template/:name/tpl.html        controllers.Application.template(name:String)
 
 POST        /war/signup                     controllers.War.signup
+GET         /war/confirm/:token             controllers.War.confirm(token:String)
+
+GET         /war/player/:profile           controllers.War.player(profile:Profile)
 
 GET         /war/:profileId                 controllers.War.index(profileId:String )
 #GET      /api/subscribe                                     controllers.Api.subscribe(battle:String,username:String)

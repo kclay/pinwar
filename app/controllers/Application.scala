@@ -6,16 +6,17 @@ import play.api.templates.Html
 import play.api.data.Forms._
 import models.Profile
 import play.api.data._
+import actions.WithCors
 
 
-object Application extends Controller {
+object Application extends Controller with WithCors {
 
   def index = Action {
     Ok(views.html.index("Your new application is ready."))
   }
 
 
-  def template(name: String) = Action {
+  def template(name: String) = AllowCors {
     implicit request =>
 
       var content = ""

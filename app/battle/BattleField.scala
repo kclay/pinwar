@@ -7,8 +7,20 @@ import akka.actor._
 import java.util.UUID
 import scala.collection.mutable
 import play.api.Logger
-import utils.Serialization.Reads._
+import scala.Some
+import models.War
+import scala.util.Try
+import scala.collection.mutable.ArrayBuffer
+import scala.collection.script.{Update, Include, Message}
+import play.api.libs.concurrent.Akka
+import scala.concurrent.duration._
+import akka.util.Timeout
 
+
+import akka.pattern.{ask, pipe}
+import scala.concurrent.{Future, ExecutionContext}
+
+import utils.{Worker, Master}
 
 /**
  * Created by IntelliJ IDEA.
@@ -18,26 +30,51 @@ import utils.Serialization.Reads._
  */
 
 
-class BattleField extends Actor {
+object BattleField {
+
+  import scala.concurrent.duration._
+  import play.api.Play.current
 
 
-  import Schema._
+  val system = Akka.system
+  private implicit val ec: ExecutionContext = system.dispatcher
+
+
+  def actorPath(name: String) = (ActorPath.fromString(
+    "akka://%s/user/%s".format(system.name, name)))
+
+  def battleRef(id: String) = system.actorFor(actorPath(id))
+
+  def worker(name: String) = system.actorOf(Props(
+    new BattleFieldWorker(actorPath(name))))
+
+  private val numOfWorkers = 1
+  lazy val master = {
+    val _master = system.actorOf(Props[Master], name = "battle_field")
+    (0 to numOfWorkers).foreach(x => worker("battle_field"))
+    _master
+  }
 
   private val logger = Logger(getClass)
-
-  import context._
-  import scala.collection.script._
-  import scala.util.{Success, Failure}
-  import scala.concurrent.duration._
-
-  import akka.pattern.ask
-
   type C = Channel[JsValue]
 
   type CC = ChannelContext
   type Sub = (String, CC)
 
+
   case class ChannelContext(channel: C, pending: Boolean = false)
+
+  val trench = new Trench
+
+  val battles = Map.empty[String, WarBattle]
+
+  val sub = new TrenchSub
+
+  val invites = mutable.Map.empty[String, String]
+  val invitesIds = ArrayBuffer.empty[String]
+
+  trench.subscribe(sub)
+
 
   class Trench extends mutable.HashMap[String, CC] with mutable.ObservableMap[String, CC] {
     type Pub = Trench
@@ -52,6 +89,7 @@ class BattleField extends Actor {
 
   class TrenchSub extends mutable.Subscriber[Message[Sub] with mutable.Undoable, Trench] {
 
+
     import scala.concurrent._
 
     //Use the system's dispatcher as ExecutionContext
@@ -62,7 +100,7 @@ class BattleField extends Actor {
     case class WatchTimeout(creatorId: String) extends Exception(s"Wasn't able to find any opponents for ${creatorId}")
 
     case class Watcher(creatorId: String, sender: ActorRef, timeout: FiniteDuration = 60 seconds) {
-      private val p = promise[ActorRef]
+      private val p = promise[War]
       private val INTERVAL = 5
 
 
@@ -95,7 +133,8 @@ class BattleField extends Actor {
         }
       }
 
-      def resolve(opponentId: String) = p.completeWith(newWar(sender, creatorId, opponentId))
+
+      def resolve(opponentId: String) = p.completeWith(master.ask(NewWar(creatorId, opponentId))(Timeout(20 seconds)).mapTo[War])
 
 
     }
@@ -103,7 +142,6 @@ class BattleField extends Actor {
     def watch(creatorId: String, sender: ActorRef, timeout: Int = 60) = {
 
       val watcher = Watcher(creatorId, sender, timeout seconds)
-
       pending.append(watcher)
       watcher.future
 
@@ -113,7 +151,7 @@ class BattleField extends Actor {
 
     def notify(pub: Trench, event: Message[Sub] with mutable.Undoable) {
       (event match {
-        case i: Include[Sub] => Some(i.elem)
+        case i: Include[Sub] if (!invitesIds.contains(i.elem._1)) => Some(i.elem)
         case u: Update[Sub] if (!u.elem._2.pending) => Some(u.elem)
         case _ => None
       }) map {
@@ -143,31 +181,51 @@ class BattleField extends Actor {
 
   }
 
+}
+
+
+class BattleFieldWorker(masterPath: ActorPath) extends Worker(masterPath) {
+
+  import BattleField._
+
+  import Schema._
+
+  private val logger = Logger(getClass)
+
+  import context._
+
+  import scala.util.{Success, Failure}
+
+
   import akka.util.Timeout
 
   implicit val timeout = Timeout(5, SECONDS)
 
-  def newWar(sender: ActorRef, creatorId: String, opponentId: String) = (self ? NewWar(creatorId, opponentId)).mapTo[ActorRef]
+
+  def newWar(sender: ActorRef, creatorId: String, opponentId: String) = (self.ask(NewWar(creatorId, opponentId))(Timeout(20, SECONDS))).mapTo[War]
 
   // map a track name to peers that have entirely streamed it and are still online
-  val trench = new Trench
 
-  var battles = Map.empty[String, WarBattle]
-
-  val sub = new TrenchSub
-
-  trench.subscribe(sub)
 
   def uid = UUID.randomUUID().toString
 
-  def receive = {
-    case Connect(profileId, channel) =>
-      trench + (profileId -> ChannelContext(channel))
+
+  // Required to be implemented
+  def doWork(workSender: ActorRef, work: Any): Unit = Future {
+    processWork(workSender, work)
+    WorkComplete("done")
+  } pipeTo (self)
+
+
+  private def processWork(ref: ActorRef, work: Any): Unit = work match {
+    case Connect(profileId, channel) => {
+      trench += (profileId -> ChannelContext(channel))
+    }
 
 
     case Find(profileId, timeout) => {
 
-      val ref = sender
+
       // update state
       trench :=+ profileId
       val f = (trench.headOption.filter {
@@ -182,34 +240,75 @@ class BattleField extends Actor {
       }
     }
 
+    case HandleInvite(opponentId, token, accept, profile) =>
+
+      // update status to pending
+      trench :=+ opponentId
+      // try to resolve the invite
+
+      Try(newWar(sender, invites.remove(token).get, opponentId)) match {
+        case Success(w) => w pipeTo (ref)
+        case Failure(e) => ref ! Failure(e)
+      }
+
+    case Invite(profileId, email) => {
+      // check to see there is a pending invite already for the requesting profile
+      val token = invites.find {
+        case (k, v) => v == profileId
+      } map (_._1) getOrElse {
+        val token = uid
+        invites += (token -> profileId)
+
+        invitesIds += profileId
+        token
+      }
+
+
+      ref ! token
+    }
 
     case NewWar(creatorId, opponentId) => {
-      logger.debug(s"New War request for $creatorId vs $opponentId")
+      logger.info(s"New War request for $creatorId vs $opponentId")
       val maybeWar = (for {
         creator <- trench get creatorId
         opponent <- trench get opponentId
 
       } yield {
-        logger.debug("Found users creating war instance")
+        logger.info("Found users creating war instance")
         val war = War(uid, creatorId, opponentId)
-        val ref = war.save match {
+        val value = war.save match {
           case Right(i) => {
             val battle = actorOf(Props(new WarBattle(war, creator.channel, opponent.channel)), name = war.id)
+
+            invitesIds -= opponentId
+            invitesIds -= creatorId
             watch(battle)
-            Some(battle)
+            Some(war)
 
           }
           case _ => None
 
         }
-        ref
+        value
 
       }).flatten
-      sender ! maybeWar
+
+      maybeWar match {
+        case Some(w) => ref ! w
+        case _ => ref ! Failure(new Error("Opponent wasn't found"))
+      }
 
 
     }
-    case Disconnect(profileId) =>
+    case wa: WarAction => {
+      battleRef(wa.war).tell(wa, ref)
+    }
+    case Disconnect(profileId) => {
+      trench.remove(profileId)
+      invitesIds -= profileId
+      invites.retain((k, v) => v != profileId)
+    }
+    case _ => logger.info("nothing")
 
 
   }
@@ -232,10 +331,10 @@ class WarBattle(war: War, creator: Channel[JsValue], opponent: Channel[JsValue])
   }
 
   def receive = {
-    case a: WarAction => {
-      log.debug(s"Recieved WarAction : $a comming from ${a.profileId}")
+    case a@WarAction(profileId, warId, action) => {
+      log.debug(s"Recieved WarAction : $a coming from ${profileId}")
 
-      a.action.track(war, a.profileId) match {
+      action.track(war, profileId) match {
         case Right(p) => log.debug(s"Tracked $p")
         case Left(e) => log.debug(s"Unable to track $e")
       }
@@ -243,155 +342,9 @@ class WarBattle(war: War, creator: Channel[JsValue], opponent: Channel[JsValue])
   }
 }
 
-class Lobby extends Actor {
-  def receive = ???
-}
 
 
-abstract class CanTrack[T <: WithPoints](implicit m: Manifest[T]) extends BattleAction {
 
-  type TrackType = T
-
-  lazy val mf: Manifest[TrackType] = m
-
-
-}
-
-sealed trait BattleAction {
-
-
-  type TrackType <: WithPoints
-  val action: String
-  type Self = this.type
-
-  import Schema._
-
-
-  def read(value: JsValue): Option[BattleAction]
-
-
-  def unapply(value: JsValue) = (value \ "name").asOpt[String] map {
-    case n if (n.equals(action)) => read(value)
-    case _ => None
-  }
-
-  def track(war: War, profileId: String): Either[Error, Points[TrackType]] = {
-    val record = factory(war, profileId)
-
-
-    val ct = this.asInstanceOf[CanTrack[TrackType]]
-
-    implicit val mf = ct.mf
-
-    record.save match {
-      case Right(b) => if (b.inserted == 1) Right(Points[TrackType](record.points, record)) else Left(new Error("unable to save"))
-      case Left(e) => Left(new Error("Unable to save"))
-    }
-  }
-
-  protected def factory(war: War, profileId: String): TrackType
-
-}
-
-
-case class CreateBoard(id: String, name: String, category: Category, url: String) extends CanTrack[Board] {
-  self =>
-
-
-  val action = "create_board"
-
-
-  def read(value: JsValue) = value.asOpt[CreateBoard]
-
-  def factory(war: War, profileId: String) = Board(id, profileId, name, category, url, 5000)
-}
-
-
-trait PinAction {
-
-  val id: String
-  val board: Board
-
-  val images: Seq[Image]
-
-}
-
-case class Repined(id: String, board: Board, images: Seq[Image]) extends CanTrack[Repin] {
-
-
-  val action = "re_pined"
-
-
-  def read(value: JsValue) = value.asOpt[Repined]
-
-  protected def factory(war: War, profileId: String) = Repin(id, board.id, profileId, 500)
-}
-
-case class CreatePin(id: String, board: Board, images: Seq[Image]) extends CanTrack[Pin] {
-
-
-  val action = "create_pin"
-
-  def read(value: JsValue) = value.asOpt[CreatePin]
-
-  protected def factory(war: War, profileId: String) = Pin(id, board.id, profileId, 1000)
-}
-
-case class Points[T](amount: Int, context: T)
-
-case class Track(war: War)
-
-
-import play.api.libs.json._
-import utils.StringHelper.lowerCaseWithUnderscore
-
-
-object Extractor {
-
-
-  abstract class CanBuild[T](implicit rds: Reads[T]) {
-    def unapply(value: JsValue): Option[T] = (value \ "event").asOpt[String] match {
-      case Some(e) if (e.equals(name)) => rds.reads(value \ "data").fold(
-        valid = v => Some(v),
-        invalid = e => None
-      )
-      case _ => None
-    }
-
-    lazy val name: String = lowerCaseWithUnderscore(getClass.getSimpleName)
-  }
-
-  case object WarAction extends CanBuild[WarAction]
-
-
-  case object Find extends CanBuild[Find]
-
-  case object Invite extends CanBuild[Invite]
-
-}
-
-trait Event {
-
-  type Self <: Event
-
-  val profileId: String
-
-
-}
-
-
-case class Invite(profileId: String, email: Option[String]) extends Event
-
-
-case class NewWar(profileId: String, opponentId: String)
-
-case class Disconnect(profileId: String)
-
-case class Connect(profileId: String, channel: Channel[JsValue])
-
-case class Find(profileId: String, timeout: Int = 60) extends Event
-
-case class WarAction(profileId: String, war: String, action: BattleAction) extends Event
 
 
 

@@ -10,15 +10,20 @@ object Mail {
 
   import com.typesafe.plugin._
   import play.api.Play.current
+  import scala.concurrent.future
+  import play.api.libs.concurrent.Execution.Implicits._
 
   val mail = use[MailerPlugin].email
 
   def apply(to: String, subject: String, textHtml: String) = {
 
-    mail.setSubject(subject)
-    mail.addRecipient(to)
-    mail.addFrom("pinwar@no-reply.com")
-    mail.sendHtml(textHtml)
+
+    future {
+      mail.setSubject(subject)
+      mail.addRecipient(to)
+      mail.addFrom("pinwar@no-reply.com")
+      mail.sendHtml(textHtml)
+    }
   }
 
 }

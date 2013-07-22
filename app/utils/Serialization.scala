@@ -62,6 +62,7 @@ object Serialization {
 
 
     implicit val rePined = Json.reads[Repined]
+    implicit val confirmReads = Json.reads[Confirm]
 
 
     implicit val battleActionReads: Reads[BattleAction] = new Reads[BattleAction] {
@@ -71,39 +72,47 @@ object Serialization {
 
       val all = Map("create_pin" -> createPin,
         "create_board" -> createBoard,
-        "re_pined" -> rePined
+        "re_pined" -> rePined,
+        "confirm" -> confirmReads
       )
-
 
 
       def reads(json: JsValue) = all.get((json \ "name").as[String]).map(_.reads(json)).getOrElse(JsError())
     }
-
+    implicit val profileReads = Json.reads[Profile]
     implicit val warActionReads = Json.reads[WarAction]
 
+    implicit val handleInviteReads = Json.reads[HandleInvite]
     implicit val findReads = Json.reads[Find]
     implicit val newGameReads = Json.reads[Invite]
 
-    implicit val profileReads = Json.reads[Profile]
+
   }
 
   object Writes {
 
+
     implicit val findWrites = Json.writes[Find]
     implicit val profileWrites = Json.writes[Profile]
     implicit val inviteWrites = Json.writes[Invite]
-    implicit val eventWrite = new Writes[Event] {
+    implicit val rankingWrites = Json.writes[Stats]
+
+    implicit val warWrites = Json.writes[War]
+
+    implicit val warAcceptedWrites = Json.writes[WarAccepted]
+    /* implicit val eventWrite = new Writes[Event] {
 
 
-      def writes(e: Event) = {
-        implicit val wjs = this
+       def writes(e: Event) = {
+         implicit val wjs = this
 
-        Json.obj(
-          "event" -> lowerCaseWithUnderscore(e.getClass.getSimpleName),
-          "data" -> Json.toJson(e)
-        )
-      }
-    }
+
+         Json.obj(
+           "event" -> lowerCaseWithUnderscore(e.getClass.getSimpleName),
+           "data" -> Json.toJson(e)
+         )
+       }
+     } */
   }
 
 }

@@ -14,13 +14,43 @@
 }
 
 .App .headerBackground, .App .headerContainer {
-  top: @height;
+  .slideDown(@height)
 
 }
 
 .App.full .appContent {
-  padding-top: 45px + @height;
+  padding-top: 0px;
+  .slideDown(@appContentHeight);
+  //padding-top: 45px + @height;
 }
+
+.column(@amount,@width) {
+  .columns-@{amount} {
+    #pinwar {
+      .left, .right {
+        width: @width + @avatarSize + @profileImageMargin !important;
+      }
+      #signup {
+        .right {
+          width: @width + @avatarSize + @profileImageMargin + 100px !important;
+        }
+      }
+      .username {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        width: @width
+      }
+    }
+  }
+}
+
+  .column(5,350px)
+
+;
+  .column(4,300px)
+
+;
 
 .with-profile-info {
   .profile {
@@ -33,6 +63,8 @@
     }
     img.avatar {
 
+      width: @avatarSize;
+      height: @avatarSize;
       display: inline-block;
     }
   }
@@ -51,7 +83,7 @@
   .right {
     float: right;
 
-    width: 60%;
+    width: 40%;
     &.profile {
       text-align: right;
 
@@ -67,6 +99,14 @@
 }
 
 #pinwar {
+  opacity: 1 !important;
+  transition-delay: @slideDownDuration+20ms;
+  -webkit-transition-delay: @slideDownDuration+20ms; /* Safari */
+  -webkit-transition: opacity .5s ease-in;
+  -moz-transition: opacity .5s ease-in;
+  -o-transition: opacity .5s ease-in;
+  transition: opacity .5s ease-in;
+
   position: fixed;
   top: 0;
   width: 100%;
@@ -129,29 +169,6 @@
     font-size: @textSmall;
   }
 
-  .hidden {
-    display: none;
-  }
-
-  .small {
-    font-size: @textSmall;
-
-  }
-  .medium {
-    font-size: @textMedium;
-  }
-
-  .bold {
-    font-weight: bold;
-  }
-
-  .username {
-
-    color: #453c44;
-    font-weight: bold;
-    font-size: @usernameTextSize;
-  }
-
   ::-webkit-input-placeholder {
     .font-bold;
   }
@@ -160,7 +177,7 @@
     position: absolute;
     bottom: 0px;
     right: 0px;
-    padding: 9px;
+    padding: 5px;
     padding-bottom: 2px;
     background: @red;
     font-size: @textSmall;
@@ -210,7 +227,7 @@
       padding-left: 5%;
 
       div {
-        margin-bottom: 16px;
+        margin-bottom: 5px;
 
       }
     }
@@ -220,24 +237,25 @@
 
       background: url('../images/email-input.png') no-repeat;
       width: @emailInputWidth - @emailPaddingLeft;
-      height: 41px;
-      padding-left: @emailPaddingLeft;
+      height: 42px;
+      padding: 0px 0px 0px @emailPaddingLeft;
+
     }
     input[type="submit"] {
-      margin-top: -2px;
+
       background: #00bf4d;
       border: none;
 
       color: #ffffff;
-      padding-left: 15px;
-      padding-right: 15px;
-      height: 41px;
+      padding: 5px 15px;
+
+      height: 40px;
     }
 
   }
 
   .vs {
-    width: 20%;
+    width: 111px;
     position: relative;
     margin: 0 auto;
     height: @height;
@@ -271,10 +289,6 @@
     input[type="text"] {
       background: url('../images/email-input-small.png') no-repeat;
       width: @emailInputSmallWidth - @emailPaddingLeft;
-    }
-
-    .right {
-      width: 40%;
     }
 
     .rank {
@@ -311,9 +325,12 @@
     .profile {
       width: @profileImageWidth + @profileImageMargin + ((@barWidth + @barMargin) * @barCount)- @barMargin;
 
-      &.right {
-        margin-top: @height * -1;
-      }
+    }
+  }
+
+  #overview, #war {
+    .right {
+      margin-top: @height * -1;
     }
   }
 
@@ -402,13 +419,13 @@ body.feedback {
 
   .App .headerBackground, .App .headerContainer {
 
-    .slideDown(@feedbackHeight)
+    .slideDown(@height + @feedbackHeight,0)
 
   }
 
   .App.full .appContent {
 
-    .slideDown(@feedbackHeight)
+    .slideDown(@appContentHeight + @feedbackHeight,0)
   }
 
   #pinwar #feedback {

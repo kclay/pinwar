@@ -1,6 +1,7 @@
 package models
 
 import com.rethinkscala.net.{Connection, Version1}
+import com.fasterxml.jackson.datatype.joda.JodaModule
 
 
 /**
@@ -23,5 +24,13 @@ object Schema extends com.rethinkscala.Schema {
 
   val wars = table[War]("wars")
   val signups = table[Signup]("signups")
+  val points = table[Point]("points")
+  val stats = table[Stats]
 
+  override protected def defineMapper = {
+    val mapper = super.defineMapper
+
+    mapper.registerModule(new JodaModule)
+    mapper
+  }
 }

@@ -12,51 +12,70 @@
         events: {
             'submit form': 'validateForm'
         },
+
         initialize: function () {
             this.$email = this.$(":text");
+            var profile = this.profile = $$.Browser.db("profile");
+
+            this.EVENTS.REGISTERED.on(this._onRegistered.bind(this));
         },
 
+        _onRegistered: function () {
+            this.$el.fadeOut("slow");
+        },
         check: function () {
-            if ($$.PlatForm.db("registered")) {
-                $$.Events.trigger("signedUp");
+
+            if ($$.qs.challenge) {
+
+                this.EVENTS.CHALLENGE($$.qs.challenge, $$.qs.accept ? true : false);
+            } else if (this.DB.REGISTERED()) {
+                this.EVENTS.REGISTERED();
+            } else if (this.DB.CONFIRMATION()) { // needs confirmation
+                if ($$.qs.signup) {
+                    this.feedback("Confirming signup...")
+                    $$.get("war/confirm/" + $$.qs.signup).done(function (data) {
+                            this.delay(function () {
+
+                                this.feedback(data);
+                                this.EVENTS.REGISTERED();
+
+                            }, 1000);
+
+                        }.bind(this)).error(function (_, _, error) {
+                            this.error(error)
+                        }.bind(this))
+                }
+
             }
+
         },
         validateForm: function ($el) {
             var email = $.trim(this.$email.val());
             if (!email) {
-                // TODO show error
-                //return false;
+                this.error("Please provide a valid email address");
+                return false;
             }
 
+            this.submit(email);
+            return false;
 
-            var info = jQuery.parseJSON(
-                $('script').text().match(
-                    /P\.currentUser\.set\((.+)\);/)[1]);
-
+        },
+        submit: function (email) {
+            var info = this.profile;
             info.email = email
-            info.name = $(".profileName").text();
-
-
-            info.avatar = $('.profileImage').css('background-image').replace('url(', '').replace(')', '');
-            if (info.avatar) {
-
-                info.avatar = info.avatar.replace('_30.jpg', '_140.jpg');
-
-            }
 
 
             // TODO submit
             $$.post('war/signup', {
                 profile: info
-            }).done(function () {
-
-                }).error(function () {
-
-                })
-
-            return false;
-
+            }).done(function (data) {
+                    this.DB.CONFIRMATION(true);
+                    this.feedback(data);
+                }.bind(this)).error(function (_, _, error) {
+                    this.error(error);
+                }.bind(this))
         }
+
 
 
     });

@@ -9,12 +9,21 @@ import akka.pattern.ask
 import akka.util.Timeout
 import akka.actor._
 import battle._
-import models.{Signup, Profile}
+import models.Signup
 import play.api.data._
 import play.api.data.Forms._
 
 import play.api.Play.current
 import utils.Mail
+import actions.WithCors
+import play.api.cache.Cache
+import battle.Connect
+import scala.Some
+import com.rethinkscala.net.RethinkNoResultsError
+import play.api.libs.json.JsObject
+import models.Profile
+import battle.Disconnect
+import battle.WarAccepted
 
 /**
  * Created by IntelliJ IDEA.
@@ -22,108 +31,241 @@ import utils.Mail
  * Date: 7/11/13
  * Time: 10:21 PM 
  */
-object War extends Controller {
+object War extends Controller with WithCors {
 
 
   import models.Schema._
   import play.api.libs.concurrent.Execution.Implicits._
   import scala.util.{Success, Failure}
+  import utils.Serialization.Writes._
 
 
   // Akka
-  val battleField = Akka.system.actorOf(Props[BattleField], name = "battle_field")
+  lazy val master = BattleField.master
 
   import battle.Extractor._
 
   lazy val findTimeout = Timeout(65, SECONDS)
 
-  implicit def throwable2Json(e: Throwable) = Json.obj(
-    "event" -> "error",
-    "data" -> Json.obj(
-      "message" -> e.getMessage
-    )
+
+  lazy val inviteTimeout = Timeout(5, MINUTES)
+
+  def fix(r: Result) = r.withHeaders(
+    "Access-Control-Allow-Origin" -> "*",
+    "Access-Control-Allow-Methods" -> "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers" -> "Content-Type, X-Requested-With, Accept",
+    // cache access control response for one day
+    "Access-Control-Max-Age" -> (60 * 60 * 24).toString
+
   )
+
+  implicit def throwable2Json(e: Throwable) = withError(e.getMessage)
 
   case class Foo(a: String)
 
   val profileForm = Form(
-    single(
+    tuple(
+
       "profile" -> mapping(
         "id" -> text,
         "username" -> text,
         "name" -> text,
         "email" -> text,
         "avatar" -> text
-      )(Profile.apply)(Profile.unapply)
+      )(Profile.apply)(Profile.unapply),
+      "token" -> optional(text)
 
     )
   )
 
+  def withError(message: String) = Json.obj(
+    "event" -> "error",
+    "data" -> Json.obj(
+      "message" -> message
+    )
+  )
 
-  def signup = Action {
+  def withFeedback(message: String) = Json.obj(
+    "event" -> "feedback",
+    "data" -> Json.obj(
+      "message" -> message
+    )
+  )
+
+  def player(p: Profile) = AllowCors {
+    implicit request =>
+      var jsp = profileWrites.writes(p).asInstanceOf[JsObject]
+      jsp = jsp +("rank", Json.toJson(p.rank))
+      jsp = jsp +("stats", Json.toJson(p.stats))
+      Ok(jsp)
+  }
+
+  def confirm(token: String) = AllowCors {
+    implicit request =>
+
+      signups.get(token) run match {
+        case Left(e) => BadRequest("Invalid Token")
+        case Right(s) => {
+          s.copy(activated = true).replace
+          Ok("Thanks for confirming your account, get ready to battle!")
+        }
+
+        //master! NewAccount()
+
+      }
+
+  }
+
+
+  def sendSignupEmail(s: Signup, profile: Profile)(implicit r: RequestHeader) = {
+    Mail(profile.email, "Welcome to PinWar", views.html.email.welcome(profile.name, s.id.get).body)
+    Created("Your email has been sent, please click on the link in it to continue the signup process")
+  }
+
+  def sendInviteEmail(from: Profile, email: String, token: String)(implicit r: RequestHeader) = {
+    Mail(email, "You have been challenged", views.html.email.challenge(from, token).body)
+  }
+
+  def newSignup(profile: Profile, token: Option[String] = None)(implicit rh: RequestHeader): Result = {
+
+    val p = token.map {
+      t => {
+        // TODO ensure data is removed
+        val email = Cache.getAs[String](t)
+
+        email.map(e => profile.copy(email = e))
+      }
+    }.flatten.getOrElse(profile)
+
+    profiles.insert(p).run match {
+      case Left(e) => BadRequest("Already registered")
+      case Right(r) => if (r.inserted == 1) {
+
+
+        ((signups insert Signup(profileId = profile.id, activated = token.isDefined) withResults) run match {
+          case Right(r) => if (token.isEmpty) r.returnedValue[Signup] map (sendSignupEmail(_, profile))
+          else Some(Ok(""))
+
+
+          case Left(e) => Some(BadRequest)
+        }).get
+
+
+      } else {
+        BadRequest
+      }
+
+    }
+  }
+
+  def signup = AllowCors {
     implicit request =>
       profileForm.bindFromRequest fold(
-        hasErrors => BadRequest("invalid"),
-        profile => profiles.insert(profile).run match {
-          case Left(e) => BadRequest
-          case Right(r) => if (r.inserted == 1) {
+        hasErrors => BadRequest("invalid"), {
+        case (profile, token) =>
+          (profiles.get(profile.id) run match {
+            case Left(e: RethinkNoResultsError) => newSignup(profile, token)
+            case Left(e) => BadRequest("Unknown Error")
+            case Right(r) => (signups filter Map("profileId" -> profile.id)).as[Signup] match {
 
-            val rtn = (signups insert Signup(profile) withResults) run match {
-              case Right(r) => r.returnedValue[Signup] map {
-                s => {
-                  Mail(profile.email, "Welcome to PinWar", views.html.email.signup(profile.name).body)
-                  Created("")
-                }
+              case Left(e) => BadRequest("")
+              case Right(s) => sendSignupEmail(s.head, profile)
 
-              }
-              case Left(e) => Some(BadRequest)
+
             }
+          })
 
-            rtn.get
 
+      }
 
-          } else {
-            BadRequest
-          }
-
-        }
         )
 
 
   }
 
+
   def index(profileId: String) = WebSocket.using[JsValue] {
-    request =>
+    implicit request =>
     // new client
 
 
-      implicit val timeout = Timeout(5, SECONDS)
+      implicit val timeout = Timeout(20, SECONDS)
 
       val (out, channel) = Concurrent.broadcast[JsValue]
 
-      val in = (battleField ? Connect(profileId, channel)).mapTo[ActorRef] map {
-        broker =>
 
-          Iteratee.foreach[JsValue] {
-            _ match {
-              case Find(f) => {
-                val fu = (battleField.ask(f)(findTimeout)).mapTo[ActorRef]
-                fu onComplete {
-                  case Success(w) =>
-                  case Failure(e) => channel.push(e)
-                }
+
+      var profile = (profiles get profileId run).right.toOption
+      implicit def accepts(war: models.War): JsValue = Json.obj(
+        "event" -> "war_accepted",
+        "data" -> WarAccepted(profileId, war)
+      )
+
+      master ! Connect(profileId, channel)
+      val in = Iteratee.foreach[JsValue] {
+        js =>
+          play.api.Logger.info(js.toString())
+          js match {
+            case HandleInvite(a) => {
+              if (profile.isEmpty) {
+                newSignup(a.profile, Some(a.token))
+                profile = Some(a.profile)
               }
-              case Invite(r) =>
+              Cache.getAs[String](a.token) match {
+                case Some(email) => {
 
-              //case a: Event.WarAction(_) =>
+
+                  Cache.remove(a.token)
+                  master.ask(a)(Timeout(1, MINUTES)).mapTo[models.War] onComplete {
+                    case Success(w) => channel.push(w)
+                    case Failure(e) => channel.push(e)
+                  }
+                }
+                case _ => channel.push(withError("It seems that your challenge request has expired"))
+              }
 
 
             }
 
+            case Find(f) => {
+              (master.ask(f)(findTimeout)) onComplete {
+                case Success(w: models.War) => channel.push(w)
+                case Failure(e) => channel.push(e)
+                case _ =>
+              }
+
+            }
+            case Invite(r) => master.ask(r)(Timeout(30, SECONDS)).mapTo[String] onComplete {
+              case Success(token) => {
+
+                val feedback = Cache.getAs[String](token).map {
+                  _ => withFeedback(s"Invite for ${r.email} has already been sent")
+                } getOrElse {
+                  Cache.set(token, r.email, 30.minutes.toSeconds.toInt)
+
+                  sendInviteEmail(profile.get, r.email, token)
+                  withFeedback(s"A Challenge request has been sent out to ${r.email}")
+
+                }
+
+                channel push (feedback)
+              }
+              case Failure(e) => channel push (e)
+              // TODO add auto battle creation if user is currently on the site
+
+            }
+
+
+            //case a: Event.WarAction(_) =>
+
 
           }
+
+
+      } mapDone {
+        _ => master ! Disconnect(profileId)
       }
 
-      (Iteratee.flatten(in), out)
+      (in, out)
   }
 }

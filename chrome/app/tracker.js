@@ -5,9 +5,14 @@
  * Time: 3:22 PM
  * To change this template use File | Settings | File Templates.
  */
-(function (w, d) {
+(function ($$, w, d) {
 
 
+    $$.Browser.onMessage(function (request, sender, sendResponse) {
+        if ($$.War != null) {
+            w.Tracker(request);
+        }
+    })
     var BoardResponse = {
         resource_response: {
             data: {}
@@ -27,7 +32,8 @@
     }
 
     function track(action) {
-        w.War.me.track(action);
+        $$.Browser.WebSocket().WarAction(action);
+
     }
 
     var trackers = {}
@@ -35,8 +41,8 @@
 
     w.Tracker = function (/** Bundle **/bundle) {
 
-        if (trackers[bundle.response]) {
-            trackers[bundle.response](bundle);
+        if (trackers[bundle.resource]) {
+            trackers[bundle.resource](bundle);
         }
     }
 

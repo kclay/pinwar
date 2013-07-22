@@ -1,40 +1,40 @@
 @(implicit r: RequestHeader)
 @import tags._
-    @bars(amount: Int) = {
+@bars(amount: Int) = {
 
-       @for(index <- 1 to amount) {
-           <div class="bar@index"><img src="@asset("images/progress-bar.png")"/></div>
-        }
-    }
-
-
-    @war(side: String, avatar: String) = {
-        <div class="@side profile">
-            <img src="@asset(avatar)" class="avatar"/>
-            <div class="info">
-                <div class="bold username">
-                    Ray Hernandez
-                </div>
-                <div class="stats">
-                    <img src="@asset("images/icon-wins.png")"/>
-                    Wins
-                    <span id="wins">0</span>
-
-                    <img src="@asset("images/icon-loses.png")"/>
-                    Loses
-                    <span id="wins">0</span>
+@for(index <- 1 to amount) {
+    <div class="bar@index"><img src="@asset("images/progress-bar.png")"/></div>
+}
+}
 
 
-                </div>
-                <div class="points">
-                @bars(10)
-                </div>
+@war(side: String, avatar: String) = {
+    <div class="@side profile">
+        <img src="@asset(avatar)" class="avatar"/>
+        <div class="info">
+            <div class="bold username">
+                Ray Hernandez
+            </div>
+            <div class="stats">
+                <img src="@asset("images/icon-wins.png")"/>
+                Wins
+                <span class="wins">0</span>
+
+                <img src="@asset("images/icon-loses.png")"/>
+                Loses
+                <span class="loses">0</span>
+
+
+            </div>
+            <div class="points">
+            @bars(10)
             </div>
         </div>
+    </div>
 
-    }
+}
 <link rel="stylesheet" media="screen" href="@routes.Assets.at("stylesheets/app.css").absoluteURL()">
-<div id="pinwar">
+<div id="pinwar" style="opacity:0;">
 
     <div id="wrapper">
 
@@ -88,17 +88,17 @@
                         <div class="stats">
                             <img src="@asset("images/icon-wins.png")"/>
                             Wins
-                            <span id="wins">0</span>
+                            <span class="wins">0</span>
 
                             <img src="@asset("images/icon-loses.png")"/>
                             Loses
-                            <span id="wins">0</span>
+                            <span class="loses">0</span>
 
 
                         </div>
                         <div class="rank up">
                             <div class="inner">
-                                <img src="@asset("images/icon-trophy.png")"/> Current Rank - <span>5,689</span>
+                                <img src="@asset("images/icon-trophy.png")"/> Current Rank - <span>0</span>
                             </div>
                         </div>
                     </div>

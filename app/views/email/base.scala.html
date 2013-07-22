@@ -1,0 +1,12 @@
+@(title: String)(body: Html)(implicit r: RequestHeader)
+@import tags._
+<link rel="stylesheet" media="screen" href="@routes.Assets.at("stylesheets/mail.css").absoluteURL()">
+<div id="pinwar" class="email">
+    <div id="inner">
+        <div id="top">
+            <img src="@asset("images/email/logo.jpg")" id="logo"/>
+            <h1>@title</h1>
+            @body
+        </div>
+    </div>
+</div>

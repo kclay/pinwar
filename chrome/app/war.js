@@ -9,13 +9,7 @@
 (function (ctx, w, d) {
 
 
-    ctx.Platform.onMessage(function (request, sender, sendResponse) {
-        if (ctx.War != null) {
-            ctx.War.onMessage(request, sender, sendResponse);
-        }
-    })
-
-    var War = Backbone.Model({
+    var War = Backbone.Model.extend({
 
 
         /**
@@ -35,10 +29,21 @@
             this.me = me;
             this.opponent = opponent;
             opponent.fetch();
+            this.ws = $$.Browser.WebSocket();
 
         },
-        onMessage: function (request, sender, sendResponse) {
 
+        track: function (action) {
+
+
+            this.ws.send(JSON.stringify({
+                event: "war_action",
+                data: {
+                    war: this.get("id"),
+                    profileId: this.me.get("id"),
+                    action: action
+                }
+            }))
         }
     })
     var PlayerView = Backbone.View.extend({
@@ -63,21 +68,45 @@
 
     })
 
-    var Player = Backbone.View.extend({
+    var Player = Backbone.Model.extend({
         defaults: {
-            wins: 0,
-            loses: 0,
-            rank: 0
+            id: null,
+            username: null,
+            name: null,
+            avatar: null,
+            ranking: {
+                wins: 0,
+                loses: 0,
+                points: 0
+            }
+
         },
-        urlRoot: ctx.path("/war/player"),
+        initialize: function () {
 
-        track: function () {
+            this.on("sync", this._onSynced.bind(this))
+        },
+        bindTo: function ($view) {
+            this.$view = $view;
+        },
+        _onSynced: function (m) {
+            var stats = m.get("stats");
+            var rank = m.get("rank");
+            this.$view
+                .find('.wins').text(stats.wins)
+                .end()
+                .find(".loses").text(stats.loses)
+                .end()
+                .find(".rank span").text(rank ? rank : "Unknown")
 
-        }
+        },
+        urlRoot: ctx.path("war/player")
+
     })
 
-    ctx.PlayerView = PlayerView;
-    ctx.newGame = function () {
+    window.Player = Player;
+
+    window.PlayerView = PlayerView;
+    $$.newGame = function () {
         if (ctx.War) {
             ctx.War.destroy()
         }

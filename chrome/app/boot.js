@@ -1,5 +1,5 @@
 var DEBUG = true;
-var DEBUG_SERVER = "http://localhost:9000/";
+var DEBUG_SERVER = "http://75.1.33.63:9000/";
 
 var SERVER = window.SERVER = DEBUG ? DEBUG_SERVER : "http://pinterest.likeus.cloudbees.net/";
 window.likeus_path = function (path) {
@@ -76,7 +76,83 @@ $.each(Logging.LOG_LEVELS, function (level, value) {
         this.log(arguments, level);
     };
 });
+function wrapDB(key) {
+    return function (value) {
+        return $$.Browser.db(key, value);
+    }
+}
+var noop = function () {
+}
+function wrapEvent(name, before, after) {
+    before = before || noop;
+    after = after || noop;
+    var f = function () {
+
+        var args = Array.prototype.slice.call(arguments);
+
+        before(name, args);
+
+        $$.Events.trigger.apply($$.Events, [name].concat(args));
+        after(name);
+    }
+
+    f.on = function (callback, context) {
+        $$.Events.on(name, callback, context);
+    }
+
+    f.off = function (callback, context) {
+        $$.Events.off(name, callback, context);
+    }
+
+    return f;
+}
 $.extend(Backbone.View.prototype, Logging);
+var viewMixins = {
+    DB: {
+        CONFIRMATION: wrapDB("needsConfirmation"),
+        PROFILE: wrapDB("profile"),
+        REGISTERED: wrapDB("registered")
+    },
+    EVENTS: {
+        _cache: {},
+        CHALLENGE: wrapEvent("newChallenge"),
+        REGISTERED: wrapEvent("registered", function () {
+            viewMixins.DB.REGISTERED(true);
+            viewMixins.DB.CONFIRMATION(false);
+        }),
+        MESSAGE: function (name) {
+            var f = this._cache[name];
+            if (!f) f = this._cache[name] = wrapEvent("message::" + name, function (name, args) {
+                $$.debug("Before event (?) with args = ? ", name, args)
+            }, function (name) {
+                $$.debug("After event (?)", name);
+            });
+
+            return f;
+        },
+        WAR_ACCEPTED: this.MESSAGE("war_accepted"),
+        WAR_ACTION: this.MESSAGE("war_action")
+    },
+
+
+    delay: function (callback, delay) {
+
+        setTimeout(callback.bind(this), delay);
+    },
+    dispatch: function () {
+        $$.Events.trigger.apply($$.Events, arguments);
+    },
+    feedback: function (message) {
+        $$.Events.trigger("feedback", message);
+    },
+    error: function (message) {
+
+        $$.Events.trigger("error", message)
+    }
+
+}
+$.extend(Backbone.View.prototype, viewMixins);
+
 
 window.likeus_script = function (url, attrs, callback) {
     if (typeof attr == "function") {
@@ -98,6 +174,21 @@ window.likeus_script = function (url, attrs, callback) {
 }
 var $$ = {};
 var r20 = /%20/g;
+$$.qs = (function () {
+    var qs = window.location.search.replace('?', '').split('&'),
+        request = {};
+    $.each(qs, function (i, v) {
+        var pair = v.split('=');
+        var key = pair[0];
+        if (key.indexOf("war[") != -1) {
+
+            key = key.replace("war[", "").replace("]", "")
+
+            return request[key] = pair[1];
+        }
+    });
+    return request;
+})();
 $$.param = function (a, traditional) {
     var prefix,
         s = [],
@@ -161,7 +252,7 @@ function buildParams(prefix, obj, traditional, add) {
         add(prefix, obj);
     }
 }
-$$.log = Logging.log;
+$$.debug = Logging.debug.bind(Logging)
 
 
 $$.path = function (endpoint) {
@@ -170,6 +261,7 @@ $$.path = function (endpoint) {
 $$.post = function (endpoint, data) {
     return this.ajax(endpoint, "POST", $$.param(data));
 }
+
 $$.get = function (endpoint, data) {
     return this.ajax(endpoint, "GET", data);
 }

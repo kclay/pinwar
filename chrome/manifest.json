@@ -27,7 +27,7 @@
                 "vendor/backbone.js",
                 "app/boot.js",
                 "app/platforms/chrome.js",
-                "app/signup.js", "app/app.js" ]
+                "app/signup.js", "app/overview.js", "app/war.js", "app/app.js" ]
         }
     ],
     "web_accessible_resources": ["app/inject/support.js", "app/inject/ajax_hooks.js"]

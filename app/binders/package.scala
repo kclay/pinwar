@@ -21,7 +21,7 @@ package object binders {
       for {
         json <- stringBinder.bind(key, params)
       } yield {
-        json match{
+        json match {
           case Right(s) => Right(Json.parse(s).as[Profile])
           case _ => Left("Unable to build profile")
         }
@@ -33,14 +33,16 @@ package object binders {
 
   implicit def profilePathBindable(implicit stringBinder: PathBindable[String]) = new PathBindable[Profile] {
 
+    import models.Schema._
+
     def bind(key: String, value: String): Either[String, Profile] =
       for {
-        json <- stringBinder.bind(key, value).right
-        profile <- Json.parse(json).asOpt[Profile].toRight("Invalid Request").right
+        id <- stringBinder.bind(key, value).right
+        profile <- profiles.get(id).run.right.toOption.toRight("No profile found").right
       } yield profile
 
     def unbind(key: String, profile: Profile): String =
-      stringBinder.unbind(key, Json.toJson(profile).toString())
+      stringBinder.unbind(key, profile.id)
 
   }
 }

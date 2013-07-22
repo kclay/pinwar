@@ -1,0 +1,103 @@
+@import "_common";
+
+@green: #5db64c;
+body {
+  background: #f2f0f1;
+  .small {
+    font-size: @textSmallEmail;
+  }
+  .medium {
+    font-size: @textMediumEmail;
+  }
+  font-size: @textSmallEmail;
+}
+
+strong {
+  font-size: @textMediumEmail;
+
+}
+
+#logo {
+  width: 240px;
+  display: block;
+  margin: 0 auto;
+  height: 79px;
+}
+
+h1 {
+  text-align: center;
+  font-size: @textMediumEmail;
+}
+
+.username {
+  font-size: @textMediumEmail !important;
+  color: #211922;
+}
+
+#request {
+  img {
+    width: 100px;
+    height: 100px;
+    float: left;
+    margin-right: @profileImageMargin;
+  }
+  .info {
+
+    height: 100px;
+    float: left;
+    width: 75%;
+    position: relative;
+    .username {
+      padding-top: 10px;
+    }
+    .button {
+      padding: 8px 40px;
+      font-size: 18px;
+      margin-right: 10px;
+    }
+    .buttons {
+      position: absolute;
+
+      bottom: 0px;
+    }
+  }
+  height: 100px;
+  padding: 11px;
+  border: 1px solid #eaeaea;
+  background: #f4f4f4;
+  margin-bottom: 25px;
+
+}
+
+#inner {
+  width: 622px;
+  margin: 0 auto;
+  background: white;
+  border: #d6d4d5 solid thin;
+
+  p {
+    text-align: center;
+    clear: both;
+  }
+}
+
+#top {
+  padding: 40px 35px;
+}
+
+a {
+  color: @green;
+}
+
+.button {
+  display: inline-block;
+  padding: 12px 40px;
+  background: @green;
+  color: white;
+  text-decoration: none;
+  &.full {
+    margin-left: 33%;
+    text-align: center;
+  }
+
+}
