@@ -8,11 +8,14 @@
 (function ($$, w, d) {
 
 
-    $$.Browser.onMessage(function (request, sender, sendResponse) {
-        if ($$.War != null) {
-            w.Tracker(request);
+    d.addEventListener("warEvent", function (e) {
+
+        $$.debug("window.message (?)", e);
+        var msg = e.detail;
+        if (msg && msg.name == "track") {
+            w.Tracker(msg.data);
         }
-    })
+    }, false);
     var BoardResponse = {
         resource_response: {
             data: {}
@@ -41,6 +44,7 @@
 
     w.Tracker = function (/** Bundle **/bundle) {
 
+        $$.debug("Tracker = ? ", bundle);
         if (trackers[bundle.resource]) {
             trackers[bundle.resource](bundle);
         }
@@ -52,13 +56,17 @@
      * @constructor
      */
 
+    var warp = function (name, f) {
+        var data = f();
+        data.action = name;
+        return data;
+    }
     var Actions = {
 
-        Pin: {
-            Repin: function (id, board_id, images) {
+        Repinned: function (id, board_id, images) {
 
-                /**
-                 * images = {
+            /**
+             * images = {
                  *      <name> : {
                  *       url : String
                  *       width : Number
@@ -66,31 +74,24 @@
                  *
                  *      }
                  */
-                return {
-                    id: id,
-                    board: board_id,
-                    images: images
-                }
+            return {
+                action: "re_pinned",
+                id: id,
+                board: board_id,
+                images: images
             }
         },
-        Board: {
-            Create: function (id, name, category, url) {
+        CreateBoard: function (id, name, category, url) {
 
-                return {
-                    id: id,
-                    name: name,
-                    category: category,
-                    url: url
-                }
-            },
-            Stats: function (id, pins, followers) {
-                return {
-                    id: id,
-                    pins: pins,
-                    followers: followers
-                }
+            return {
+                action: "create_board",
+                id: id,
+                name: name,
+                category: category,
+                url: url
             }
         }
+
 
     }
 
@@ -101,7 +102,8 @@
          */
         var resp = bundle.response;
         var data = resp.resource_response.data;
-        var action = new Actions.Board.Create(data.id, data.name, data.category, data.url)
+        var action = new Actions.CreateBoard(data.id, data.name, data.category, data.url)
+        $$.debug("BoardResource = ? ", action);
 
         track(action);
 
@@ -119,10 +121,10 @@
         })
 
 
-        var action = new Actions.Pin.Repin(data.id, data.board.id, images);
+        var action = new Actions.Repinned(data.id, data.board.id, images);
 
         track(action);
     }
 
 
-})
+})($$, window, document);

@@ -1,38 +1,82 @@
 @(implicit r: RequestHeader)
+
+<script type="text/template" id="templateChallenge">
+    <span><span class="name"></span> wants to fight you!</span>
+    <input type="button" value="Accept" class="positive" id="accept"/>
+    <input type="button" value="Decline" class="negative" id="decline"/>
+    <span id="countdown"></span>
+
+</script>
+<script type="text/template" id="templateNoChallengers">
+    <span>Sorry, unable to find any challengers for you to battle</span>
+    <input type="button" value="Try Again" class="positive" id="find"/>
+
+
+</script>
 @import tags._
-@bars(amount: Int) = {
+    @bars(amount: Int) = {
 
-@for(index <- 1 to amount) {
-    <div class="bar@index"><img src="@asset("images/progress-bar.png")"/></div>
-}
-}
+    @for(index <- 1 to amount) {
+        <div class="bar@index"><img src="@asset("images/progress-bar.png")"/></div>
+    }
+    }
+
+    @stats(side: String) = {
+        <div class="@side profile stats">
+            <img src="" class="avatar"/>
+            <div class="info">
+                <div class="bold username">
+
+                </div>
+                <div class="stats">
+                    <img src="@asset("images/icon-wins.png")" class="icon-win"/>
+                    Wins
+                    <span class="wins">0</span>
+
+                    <img src="@asset("images/icon-loses.png")" class="icon-loses"/>
+                    Loses
+                    <span class="loses">0</span>
 
 
-@war(side: String, avatar: String) = {
-    <div class="@side profile">
-        <img src="@asset(avatar)" class="avatar"/>
-        <div class="info">
-            <div class="bold username">
-                Ray Hernandez
-            </div>
-            <div class="stats">
-                <img src="@asset("images/icon-wins.png")"/>
-                Wins
-                <span class="wins">0</span>
-
-                <img src="@asset("images/icon-loses.png")"/>
-                Loses
-                <span class="loses">0</span>
-
-
-            </div>
-            <div class="points">
-            @bars(10)
+                </div>
+                <div class="rank up">
+                    <div class="inner">
+                    @if(side == "right") {
+                        <span>0</span>- Current Rank <img src="@asset("images/icon-trophy.png")"/>
+                    } else {
+                        <img src="@asset("images/icon-trophy.png")"/> Current Rank - <span>0</span>
+                    }
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
+    }
+    @war(side: String, avatar: String) = {
+        <div class="@side profile">
 
-}
+            <img src="@asset(avatar)" class="avatar"/>
+            <div class="info">
+                <div class="bold username">
+                    Ray Hernandez
+                </div>
+                <div class="stats">
+                    <img src="@asset("images/icon-wins.png")"/>
+                    Wins
+                    <span class="wins">0</span>
+
+                    <img src="@asset("images/icon-loses.png")"/>
+                    Loses
+                    <span class="loses">0</span>
+
+
+                </div>
+                <div class="points">
+                @bars(10)
+                </div>
+            </div>
+        </div>
+
+    }
 <link rel="stylesheet" media="screen" href="@routes.Assets.at("stylesheets/app.css").absoluteURL()">
 <div id="pinwar" style="opacity:0;">
 
@@ -77,38 +121,16 @@
 
         </div>
 
-        <div id="overview" class="view hidden">
+        <div id="overview" class="view">
+            <div class="progress full"></div>
             <div class="centeredWithinWrapper">
-                <div class="left profile">
-                    <img src="@asset("images/avatar.jpg")" class="avatar"/>
-                    <div class="info">
-                        <div class="bold username">
-                            Ray Hernandez
-                        </div>
-                        <div class="stats">
-                            <img src="@asset("images/icon-wins.png")"/>
-                            Wins
-                            <span class="wins">0</span>
-
-                            <img src="@asset("images/icon-loses.png")"/>
-                            Loses
-                            <span class="loses">0</span>
-
-
-                        </div>
-                        <div class="rank up">
-                            <div class="inner">
-                                <img src="@asset("images/icon-trophy.png")"/> Current Rank - <span>0</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                @stats("left")
 
 
                 <div class="vs">
                     <img src="@asset("images/vs.png")"/>
                 </div>
-                <div class="right bold">
+                <div class="right bold" id="invite">
 
                     <div class="email">
                         <div class="inner">
@@ -121,21 +143,33 @@
                         </div>
                     </div>
                 </div>
+                @stats("right")
             </div>
 
             <div class="details">
-                or you can <a href="#">Learn How to Fight</a>
+                or you can <a href="#" id="find">Pick A random opponent</a>
             </div>
         </div>
 
 
         <div id="war" class="view hidden">
+            <div class="progress me"></div>
+            <div class="progress opponent"></div>
             <div class="centeredWithinWrapper">
 
                 @war("left", "images/avatar.jpg")
 
                 <div class="vs">
+                    <span class="title">BATTLE THEME</span>
+                    <span class="category">DIY PROJECTS</span>
                     <img src="@asset("images/vs.png")"/>
+                    <div class="action">
+                        <div class="top">
+                            <span class="points">+1000</span>
+                            <span>POINTS</span>
+                        </div>
+                        <div class="bottom"></div>
+                    </div>
                 </div>
                 @war("right", "images/avatar2.jpg")
             </div>
@@ -148,8 +182,8 @@
     <div id="feedback">
         <div class="inner">
             <span>Your friend <strong>Keyston Clay</strong> wants to fight you!</span>
-            <input type="button" value="Accept" class="positive"/>
-            <input type="button" value="Decline" class="negative"/>
+            <input type="button" value="Accept" class="positive" id="accept"/>
+            <input type="button" value="Decline" class="negative" id="decline"/>
         </div>
     </div>
 

@@ -76,9 +76,15 @@ $.each(Logging.LOG_LEVELS, function (level, value) {
         this.log(arguments, level);
     };
 });
-function wrapDB(key) {
+function wrapDB(key, fn) {
     return function (value) {
-        return $$.Browser.db(key, value);
+        var before = $$.Browser.db(key);
+
+        var rtn = $$.Browser.db(key, value);
+        if (fn && rtn != before) {
+            fn(rtn);
+        }
+        return rtn;
     }
 }
 var noop = function () {
@@ -90,7 +96,12 @@ function wrapEvent(name, before, after) {
 
         var args = Array.prototype.slice.call(arguments);
 
+        var event = name.replace("message::", '');
+        /* if (args.indexOf(event) == -1) {
+         args.unshift(event);
+         }*/
         before(name, args);
+
 
         $$.Events.trigger.apply($$.Events, [name].concat(args));
         after(name);
@@ -107,19 +118,54 @@ function wrapEvent(name, before, after) {
     return f;
 }
 $.extend(Backbone.View.prototype, Logging);
+function isUpperCase(str) {
+    for (var i = 0, len = str.length; i < len; i++) {
+        var letter = str.charAt(i);
+        var keyCode = letter.charCodeAt(i);
+        if (keyCode > 96 && keyCode < 123) {
+            return false;
+        }
+    }
+
+    return true;
+}
+var Messages = {
+    ChallengeRequest: "challenge_request",
+    Feedback: "feedback",
+    Error: "error",
+    Countdown: "countdown",
+    WarAccepted: "war_accepted",
+    Points: "points"
+}
+var State = {
+    FINDING: "FINDING",
+    IDLE: "IDLE",
+    BATTLE: "BATTLE"
+}
 var viewMixins = {
+    MESSAGES: Messages,
+    STATE: State,
     DB: {
         CONFIRMATION: wrapDB("needsConfirmation"),
         PROFILE: wrapDB("profile"),
-        REGISTERED: wrapDB("registered")
+        REGISTERED: wrapDB("registered"),
+        STATE: wrapDB("appState", function (value) {
+            viewMixins.EVENTS.STATE_CHANGED(value);
+        })
     },
     EVENTS: {
         _cache: {},
+        FEEDBACK: wrapEvent("message::feedback"),
+        ERROR: wrapEvent("message::error"),
         CHALLENGE: wrapEvent("newChallenge"),
+        SYNC: wrapEvent("sync"),
+
+        STATE_CHANGED: wrapEvent("appStateChanged"),
         REGISTERED: wrapEvent("registered", function () {
             viewMixins.DB.REGISTERED(true);
             viewMixins.DB.CONFIRMATION(false);
         }),
+
         MESSAGE: function (name) {
             var f = this._cache[name];
             if (!f) f = this._cache[name] = wrapEvent("message::" + name, function (name, args) {
@@ -129,9 +175,8 @@ var viewMixins = {
             });
 
             return f;
-        },
-        WAR_ACCEPTED: this.MESSAGE("war_accepted"),
-        WAR_ACTION: this.MESSAGE("war_action")
+        }
+
     },
 
 
@@ -151,6 +196,9 @@ var viewMixins = {
     }
 
 }
+$.each(Messages, function (key, value) {
+    viewMixins.EVENTS[key] = viewMixins.EVENTS.MESSAGE(value);
+})
 $.extend(Backbone.View.prototype, viewMixins);
 
 
@@ -174,6 +222,7 @@ window.likeus_script = function (url, attrs, callback) {
 }
 var $$ = {};
 var r20 = /%20/g;
+$$.Messages = Messages;
 $$.qs = (function () {
     var qs = window.location.search.replace('?', '').split('&'),
         request = {};

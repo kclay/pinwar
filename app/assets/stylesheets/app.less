@@ -18,10 +18,32 @@
 
 }
 
+.App .appendedContainer>.Module {
+  top: @height;
+}
+
 .App.full .appContent {
   padding-top: 0px;
   .slideDown(@appContentHeight);
   //padding-top: 45px + @height;
+}
+
+.noScroll {
+  #pinwar {
+    display: none;
+  }
+  .App .headerBackground, .App .headerContainer {
+    -webkit-transform: none;
+    transform: none;
+  }
+  .App .appendedContainer>.Module {
+    top: 0px !important;
+  }
+  .App.full .appContent {
+    padding-top: 45px;
+    -webkit-transform: none;
+    transform: none;
+  }
 }
 
 .column(@amount,@width) {
@@ -45,10 +67,30 @@
   }
 }
 
+.centeredWrapper(@size,@width) {
+  .columns-@{size} {
+    #pinwar {
+      .centeredWithinWrapper {
+        width: @width;
+      }
+    }
+  }
+}
+
   .column(5,350px)
 
 ;
+
   .column(4,300px)
+
+;
+  .column(7,350px)
+
+;
+  .centeredWrapper(7,60%)
+
+;
+  .centeredWrapper(6,80%)
 
 ;
 
@@ -255,19 +297,78 @@
   }
 
   .vs {
-    width: 111px;
+    width: 140px;
     position: relative;
     margin: 0 auto;
-    height: @height;
+
+    height: @height - @borderHeight;
+    line-height: 17px;
+    span {
+      font-size: 17px;
+      vertical-align: top;
+
+    }
+    .title {
+
+      display: inline-block;
+      padding-top: 10px;
+      font-weight: bold;
+      color: #453c44;
+    }
+    .category {
+
+      color: @red;
+      border-bottom: @borderHeight solid @red;
+    }
     img {
 
-      padding-top: (@height - 67px);
-
+      position: absolute;
+      bottom: -1px;
+      left: 10%;
       width: 111px;
       display: block;
-      margin: 0 auto;
+
     }
+    .action {
+      position: absolute;
+      width: 100%;
+      top: 0px;
+      height: 100%;
+      .slideDown(-@height);
+
+      .top {
+        letter-spacing: -2px;
+        font-size: 26px;
+
+        color: #453c44;
+        height: 80px;
+        text-align: right;
+        span {
+          display: block;
+          width: 95%;
+          font-size: 26px;
+        }
+        .points {
+          .font-bold;
+
+          line-height: 50px;
+          font-size: 44px;
+          color: white;
+        }
+      }
+      .bottom {
+        .font-bold;
+
+        height: @height - 80px - @borderHeight;
+        font-size: 22px !important;
+        color: white;
+        text-align: center;
+
+      }
+    }
+
   }
+
   .stats {
     img {
       display: inline-block;
@@ -282,6 +383,29 @@
       margin-right: 25px;
     }
   }
+  .right {
+    .stats {
+      .icon-loses {
+        margin-left: 25px;
+      }
+      span {
+        margin-right: 0px;
+
+      }
+    }
+  }
+
+  .progress {
+    height: @progressHeight;
+    position: relative;
+    &.full {
+      background: @green;
+      margin: 0 auto;
+      width: 0%;
+    }
+
+  }
+
   #overview {
 
     .with-profile-info;
@@ -318,11 +442,31 @@
       }
 
     }
+    .right .rank {
+      span {
+        margin-right: 0px;
+        margin-left: 40px;
+      }
+      .inner {
+        background-position: center left;
+      }
+    }
   }
 
   #war {
     .with-profile-info;
+    .progress {
+      width: 0%;
+      .expand-progress;
+      position: absolute;
+      background: @meActionMainColor;
+      &.opponent {
+        right: 0px;
+        background: @opponentActionMainColor;
+      }
+    }
     .profile {
+
       width: @profileImageWidth + @profileImageMargin + ((@barWidth + @barMargin) * @barCount)- @barMargin;
 
     }
@@ -330,7 +474,10 @@
 
   #overview, #war {
     .right {
-      margin-top: @height * -1;
+      margin-top: (@height - 7) * -1;
+      .rank {
+        right: @profileImageWidth + @profileImageMargin;
+      }
     }
   }
 
@@ -352,6 +499,9 @@
       display: table-cell;
       vertical-align: middle;
     }
+    #countdown {
+      font-size: 14px;
+    }
   }
 
   // points
@@ -365,7 +515,7 @@
       }
     }
   }
-  .points {
+  .info .points {
     padding-top: 9px;
     img {
       height: 0%;
@@ -403,6 +553,56 @@
   .barX(2);
   .barX(1);
 
+}
+
+.expand-progress(@duration:@slideDownDuration) {
+  -webkit-transition: width @duration ease-in;
+  -moz-transition: width @duration ease-in;
+  -ms-transition: width @duration ease-in;
+  -o-transition: width @duration ease-in;
+  transition: width @duration ease-in;
+}
+
+body.point {
+  #war .action {
+    .slideDown(0px);
+  }
+  &.me #pinwar {
+
+    .progress.me {
+
+      width: 50% !important;
+    }
+    .action {
+      .top {
+        background: @meActionMainColor;
+      }
+      .bottom {
+        background: @meActionSecondaryColor;
+      }
+    }
+  }
+  &.opponent #pinwar {
+
+    .progress.opponent {
+      width: 50% !important;
+    }
+    .action {
+      .top {
+        background: @opponentActionMainColor;
+      }
+      .bottom {
+        background: @opponentActionMainColor;
+      }
+    }
+  }
+
+}
+
+#pinwar {
+  .stats.right {
+    display: none;
+  }
 }
 
 .slideDown(@y,@duration:@slideDownDuration) {

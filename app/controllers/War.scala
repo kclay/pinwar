@@ -4,7 +4,6 @@ import scala.concurrent.duration._
 import play.api.libs.iteratee._
 import play.api.libs.json._
 import play.api.mvc._
-import play.api.libs.concurrent.Akka
 import akka.pattern.ask
 import akka.util.Timeout
 import akka.actor._
@@ -17,13 +16,12 @@ import play.api.Play.current
 import utils.Mail
 import actions.WithCors
 import play.api.cache.Cache
-import battle.Connect
+
 import scala.Some
 import com.rethinkscala.net.RethinkNoResultsError
 import play.api.libs.json.JsObject
 import models.Profile
-import battle.Disconnect
-import battle.WarAccepted
+
 
 /**
  * Created by IntelliJ IDEA.
@@ -41,14 +39,12 @@ object War extends Controller with WithCors {
 
 
   // Akka
-  lazy val master = BattleField.master
+  lazy val scope = BattleField
 
-  import battle.Extractor._
+  lazy val ctx = scope.instance
+  lazy val master = ctx.master
+  lazy val caches = scope.caches
 
-  lazy val findTimeout = Timeout(65, SECONDS)
-
-
-  lazy val inviteTimeout = Timeout(5, MINUTES)
 
   def fix(r: Result) = r.withHeaders(
     "Access-Control-Allow-Origin" -> "*",
@@ -59,7 +55,6 @@ object War extends Controller with WithCors {
 
   )
 
-  implicit def throwable2Json(e: Throwable) = withError(e.getMessage)
 
   case class Foo(a: String)
 
@@ -78,19 +73,6 @@ object War extends Controller with WithCors {
     )
   )
 
-  def withError(message: String) = Json.obj(
-    "event" -> "error",
-    "data" -> Json.obj(
-      "message" -> message
-    )
-  )
-
-  def withFeedback(message: String) = Json.obj(
-    "event" -> "feedback",
-    "data" -> Json.obj(
-      "message" -> message
-    )
-  )
 
   def player(p: Profile) = AllowCors {
     implicit request =>
@@ -196,52 +178,49 @@ object War extends Controller with WithCors {
 
 
       var profile = (profiles get profileId run).right.toOption
-      implicit def accepts(war: models.War): JsValue = Json.obj(
-        "event" -> "war_accepted",
-        "data" -> WarAccepted(profileId, war)
-      )
+
 
       master ! Connect(profileId, channel)
       val in = Iteratee.foreach[JsValue] {
         js =>
           play.api.Logger.info(js.toString())
           js match {
-            case HandleInvite(a) => {
+            case Extractor.HandleInvite(a) => {
               if (profile.isEmpty) {
                 newSignup(a.profile, Some(a.token))
                 profile = Some(a.profile)
               }
-              Cache.getAs[String](a.token) match {
+
+              caches.invites(a.token) match {
                 case Some(email) => {
 
 
-                  Cache.remove(a.token)
-                  master.ask(a)(Timeout(1, MINUTES)).mapTo[models.War] onComplete {
-                    case Success(w) => channel.push(w)
-                    case Failure(e) => channel.push(e)
-                  }
+                  caches.invites - a.token
+                  master ! a
                 }
                 case _ => channel.push(withError("It seems that your challenge request has expired"))
+
               }
 
 
             }
 
-            case Find(f) => {
-              (master.ask(f)(findTimeout)) onComplete {
-                case Success(w: models.War) => channel.push(w)
+            case Extractor.Find(f) => {
+              (master.ask(f)(ctx.findTimeout)) onComplete {
+                case Success(w: models.War) =>
                 case Failure(e) => channel.push(e)
                 case _ =>
               }
 
             }
-            case Invite(r) => master.ask(r)(Timeout(30, SECONDS)).mapTo[String] onComplete {
+            case Extractor.Invite(r) => master.ask(r)(Timeout(30, SECONDS)).mapTo[String] onComplete {
               case Success(token) => {
 
-                val feedback = Cache.getAs[String](token).map {
+                val feedback = caches.invites(token).map {
                   _ => withFeedback(s"Invite for ${r.email} has already been sent")
                 } getOrElse {
-                  Cache.set(token, r.email, 30.minutes.toSeconds.toInt)
+
+                  caches.invites(token, r.email)
 
                   sendInviteEmail(profile.get, r.email, token)
                   withFeedback(s"A Challenge request has been sent out to ${r.email}")
@@ -254,6 +233,7 @@ object War extends Controller with WithCors {
               // TODO add auto battle creation if user is currently on the site
 
             }
+            case Extractor.ChallengeResponse(cr) => master ! cr
 
 
             //case a: Event.WarAction(_) =>

@@ -4,7 +4,10 @@ var AppView = Backbone.View.extend({
 
     signupView: null,
     firstName: null,
-    $feedback: null,
+
+    _previousState: null,
+    findTimeout: 60 * 2,
+
     initialize: function () {
 
 
@@ -53,30 +56,18 @@ var AppView = Backbone.View.extend({
 
 
         })
-        $$.Events.on("error", _.bind(this._onError, this));
-        $$.Events.on("feedback", _.bind(this._onFeedback, this));
+
+        this.EVENTS.STATE_CHANGED.on(this._onStateChange.bind(this));
     },
-    _onFeedback: function (message, autoClose) {
-        this._feedback(message, autoClose);
-        $body.addClass("feedback").removeClass("error")
+    _onStateChange: function (state) {
+        //this.DB.STATE(state);
+        if (this._previousState) {
+            $body.removeClass("state-" + this._previousState);
+        }
+        $body.addClass("state-" + state);
 
     },
-    _feedback: function (message, autoClose) {
-        this.$feedback.html(message);
-        if (this._feedbackId) {
-            clearTimeout(this._feedbackId);
-        }
-        if (typeof autoClose == autoClose || autoClose) {
-            this._feedbackId = setTimeout(function () {
-                $body.removeClass("error feedback");
-            }, autoClose === true ? 10 * 1000 : autoClose);
-        }
-    },
-    _onError: function (message, autoClose) {
-        this._feedback(message);
-        $body.addClass("feedback error")
 
-    },
     loaded: function (html) {
         $(".Header").before(html);
         this.setElement($("#pinwar"));
@@ -97,30 +88,20 @@ var AppView = Backbone.View.extend({
         this.EVENTS.REGISTERED.on(this._onRegistered.bind(this)); // make sure this is done first
         this.EVENTS.CHALLENGE.on(this._onChallenge.bind(this));
 
-        this.WAR_ACCEPTED.on(this._onWarAccepted.bind(this));
+        // this.Messages.on(this._onWarAccepted.bind(this));
         this.signupView = new SignupView({el: this.$("#signup")});
         this.overviewView = new OverviewView({el: this.$("#overview")})
-        this.$feedback = this.$("#feedback .inner");
+        this.feedbackView = new FeedbackView({el: this.$("#feedback")});
+        this.warView = new WarView({el: this.$("#war")});
+
         //this.inviteView = new InviteView({el:this.$("#invite")});
 
 
         this.signupView.check();
 
-        var f = this._onHandleFeedback.bind(this);
-        this.EVENTS.MESSAGE("feedback").on(f);
-        this.EVENTS.MESSAGE("error").on(f);
-
 
     },
-    _onWarAccepted: function (event, data) {
-        var war = data;
-        if (ctx.War) {
-            ctx.War.destroy()
-        }
 
-
-        return ctx.War = new War();
-    },
     ws: function () {
         if (!this._ws) {
             var ws = this._ws = $$.Browser.WebSocket();
@@ -149,11 +130,7 @@ var AppView = Backbone.View.extend({
      * @param data
      * @private
      */
-    _onHandleFeedback: function (event, data) {
-        var f = event == "feedback" ? this._onFeedback : this._onError
-        f.call(this, data.message, true);
 
-    },
     _onRegistered: function () {
         this.me.fetch()
         var ws = this.ws();
@@ -175,7 +152,19 @@ var AppView = Backbone.View.extend({
     },
     _onWebSocketMessage: function (e) {
 
-        this.EVENTS.MESSAGE(e.event)(e.event, e.data);
+        if (e.event == "feedback" || e.event == "error") {
+            if (e.event == "feedback") {
+                this.EVENTS.FEEDBACK(e.data);
+            } else {
+                this.EVENTS.ERROR(e.data);
+            }
+        } else {
+            this.EVENTS.MESSAGE(e.event)(e.data);
+        }
+        this._handleWebsocketMessage(e.event, e.data);
+    },
+    _handleWebsocketMessage: function (event, data) {
+
     }
 
 

@@ -19,6 +19,9 @@
             case "ws:onClosed":
                 ws.onclose(msg.data);
                 break;
+            case "app:onSync":
+                $$.EVENTS.SYNC(msg.data);
+                break;
         }
     });
     function send(data) {
@@ -83,10 +86,20 @@
                     })
                 },
                 Find: function () {
-
+                    this.event("find", {
+                        timeout: app.findTimeout
+                    });
                 },
                 Confirm: function () {
                     this.WarAction({profileId: profileId})
+                },
+                ChallengeResponse: function (request, accepted) {
+                    this.event("challenge_response", {
+                        token: request.token,
+                        creatorId: request.profile.id,
+                        accepted: accepted
+                    })
+
                 },
                 HandleInvite: function (token, accept) {
                     this.event("handle_invite", {

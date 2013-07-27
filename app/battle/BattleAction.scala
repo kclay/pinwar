@@ -2,31 +2,12 @@ package battle
 
 import models._
 import play.api.libs.json.JsValue
-import battle.CreateBoard
-import battle.Confirm
-import battle.Repined
-import battle.CreatePin
-import battle.Points
-import battle.CreateBoard
-import battle.Confirm
-import battle.Repined
-import battle.CreatePin
-import battle.Points
-import battle.CreateBoard
-import battle.Confirm
-import battle.Repined
-import battle.CreatePin
-import battle.Points
-import battle.CreateBoard
-import battle.Confirm
 import models.Pin
 import models.Board
-import battle.Repined
-import battle.CreatePin
 import models.War
 import models.Repin
-import battle.Points
 import models.Image
+import utils.Serialization.Reads._
 
 /**
  * Created by IntelliJ IDEA.
@@ -71,7 +52,7 @@ sealed trait BattleAction {
     implicit val mf = ct.mf
 
     record.save match {
-      case Right(b) => if (b.inserted == 1) Right(Points[TrackType](record.points, record)) else Left(new Error("unable to save"))
+      case Right(b) => if (b.inserted == 1) Right(Points[TrackType](profileId, record.points, record)) else Left(new Error("unable to save"))
       case Left(e) => Left(new Error("Unable to save"))
     }
   }
@@ -134,6 +115,6 @@ case class Confirm(profileId: String) extends BattleAction {
   protected def factory(war: War, profileId: String) = ???
 }
 
-case class Points[T](amount: Int, context: T)
+case class Points[T](profileId: String, amount: Int, context: T)
 
 case class Track(war: War)

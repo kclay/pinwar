@@ -10,6 +10,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo.{As, Id}
 import com.rethinkscala.ast.{Literal, Sequence, Desc, Var}
 import org.joda.time.DateTime
 import com.rethinkscala.Implicits._
+import play.api.cache.Cache
 
 /**
  * Created by IntelliJ IDEA.
@@ -21,6 +22,11 @@ import com.rethinkscala.Implicits._
 
 case class RankFilter()
 
+
+object Profile {
+
+}
+
 case class Profile(id: String, username: String, name: String, email: String, avatar: String) extends Document {
 
   @JsonIgnore
@@ -29,6 +35,7 @@ case class Profile(id: String, username: String, name: String, email: String, av
   lazy val lastName = name.split(" ").drop(1).mkString(" ")
 
   private def _rank(s: Sequence) = s.order(Desc("points")).indexesOf((v: Var) => (v \ "profileId").eq(id: Literal)).as[Int].right.toOption.map(_.headOption).flatten
+
 
   @JsonIgnore
   lazy val rank = _rank(Schema.stats)

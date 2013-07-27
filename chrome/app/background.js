@@ -7,7 +7,13 @@ function sendMessage(bundle) {
 var ws;
 
 
+var activeWar = null;
+
 var tabs = [];
+
+function toTab(tabId, msg) {
+    chrome.tabs.sendMessage(tabId, msg);
+}
 function forward(name, save) {
 
     var last = null;
@@ -15,7 +21,7 @@ function forward(name, save) {
     function apply(e) {
         var msg = {name: name, data: e}
         for (var id in tabs) {
-            chrome.tabs.sendMessage(tabs[id].id, msg);
+            toTab(tabs[id].id, msg);
         }
     }
 
@@ -44,6 +50,14 @@ function forward(name, save) {
 chrome.tabs.onCreated.addListener(function (tab) {
     if (tab.url.indexOf("pinterest.com") != -1) {
         tabs.push(tab);
+        if (activeWar) {
+            toTab(tab.id, {
+                name: "app:onSync",
+                data: {
+                    war: activeWar
+                }
+            })
+        }
     }
 
 })
@@ -68,6 +82,38 @@ chrome.tabs.onRemoved.addListener(function (tabId) {
 });
 
 
+var selfProfileId;
+function handleOnMessage(data) {
+
+
+    switch (data.event) {
+        case "war_accepted":
+
+            selfProfileId = JSON.parse(window.localStorage["profile"]).data.id;
+
+
+            activeWar = data;
+
+            activeWar.points = {
+                me: 0,
+                opponent: 0
+            }
+
+
+            break;
+
+        case "war_action":
+            if (data.profileId == selfProfileId) {
+                activeWar.points.me += data.points;
+            } else {
+                activeWar.points.opponent += data.points;
+            }
+
+            break;
+
+
+    }
+}
 chrome.runtime.onMessage.addListener(function (msg) {
     switch (msg.name) {
         case "ws:connect":
@@ -77,7 +123,7 @@ chrome.runtime.onMessage.addListener(function (msg) {
                 ws.onopen = forward("ws:onConnected", true);
                 ws.onerror = forward("ws:onError");
                 ws.onclose = forward("ws:onClosed");
-                ws.onmessage = forward("ws:onMessage");
+                ws.onmessage = forward("ws:onMessage", handleOnMessage);
             } else {
                 ws.onopen()
             }
