@@ -1,27 +1,11 @@
 package utils
 
+import play.api.libs.json.{Writes => Write, Reads => Read}
 import play.api.libs.json._
 import utils.StringHelper._
 import models._
-import play.api.libs.json.JsSuccess
-import scala.Some
 import battle._
-import play.api.libs.json.JsSuccess
-import scala.Some
-import play.api.libs.json.JsSuccess
-import scala.Some
-import play.api.libs.json.JsSuccess
-import scala.Some
-import battle.Repined
-import battle.WarAction
-import battle.Invite
-import battle.CreatePin
-import play.api.libs.json.JsSuccess
-import battle.Find
-import scala.Some
-import battle.CreateBoard
 import models.Board
-import battle.Repined
 import battle.WarAction
 import battle.Invite
 import battle.CreatePin
@@ -56,12 +40,15 @@ object Serialization {
     implicit val imagesReads = Json.reads[Image]
 
 
-    implicit val createBoard = Json.reads[CreateBoard]
+    implicit val createBoardReads = Json.reads[CreateBoard]
 
-    implicit val createPin = Json.reads[CreatePin]
+    implicit val createPinReads = Json.reads[CreatePin]
+
+    implicit val createCommentReads = Json.reads[CreateComment]
+    implicit val createLikeReads = Json.reads[CreateLike]
 
 
-    implicit val rePined = Json.reads[Repined]
+    implicit val rePinedReads = Json.reads[CreateRepin]
     implicit val confirmReads = Json.reads[Confirm]
 
 
@@ -70,15 +57,22 @@ object Serialization {
 
       // have to supply hits so that intellij wont deadlock
 
-      val all = Map("create_pin" -> createPin,
-        "create_board" -> createBoard,
-        "re_pined" -> rePined,
-        "confirm" -> confirmReads
+      val all = Map(CreatePin.action -> createPinReads,
+        CreateBoard.action -> createBoardReads,
+        CreateComment.action -> createCommentReads,
+        CreateRepin.action -> rePinedReads,
+        CreateLike.action -> createLikeReads
       )
 
 
-      def reads(json: JsValue) = all.get((json \ "action").as[String]).map(_.reads(json)).getOrElse(JsError())
+      def reads(json: JsValue) = {
+        val action = (json \ "action").as[String]
+        // TODO Fix Possible error
+        all.get(action).get.reads(json).asInstanceOf[JsResult[BattleAction]]
+
+      }
     }
+
     implicit val profileReads = Json.reads[Profile]
     implicit val warActionReads = Json.reads[WarAction]
 
@@ -95,6 +89,14 @@ object Serialization {
   }
 
   object Writes {
+
+    implicit def appError2Json(e: AppError): JsValue = Json.obj(
+      "event" -> "error",
+      "data" -> Json.obj(
+        "message" -> e.message,
+        "kind" -> e.kind
+      )
+    )
 
     implicit def throwable2Json(e: Throwable): JsValue = withError(e.getMessage)
 
@@ -117,6 +119,9 @@ object Serialization {
     implicit val inviteWrites = Json.writes[Invite]
     implicit val rankingWrites = Json.writes[Stats]
 
+    implicit val categoryWrites = new Writes[Category] {
+      def writes(o: Category) = JsString(o.displayName)
+    }
     implicit val warWrites = Json.writes[War]
 
 
@@ -147,6 +152,16 @@ object Serialization {
     }
 
 
+    implicit val boardWrites = Json.writes[Board]
+    implicit val repinWrites = Json.writes[Repin]
+
+    implicit val commentWrites = Json.writes[Comment]
+
+    implicit val likeWrites = Json.writes[Like]
+
+    implicit val pinWrites = Json.writes[Pin]
+
+
     implicit val challengeResponseWrites = Json.writes[ChallengeResponse]
 
     implicit def event2JsValue[T <: Event](event: T)(implicit wsj: Writes[T]): JsValue = {
@@ -161,6 +176,24 @@ object Serialization {
       Json.obj(
         "event" -> lowerCaseWithUnderscore(event.getClass.getSimpleName),
         "data" -> wjs.writes(event)
+      )
+    }
+
+    implicit def pointContext2JsValue[T <: PointContext](context: T)(implicit wsj: Writes[T]): JsValue = {
+      var obj = wsj.writes(context).asInstanceOf[JsObject]
+      obj +=("name", Json.toJson(lowerCaseWithUnderscore(context.getClass.getSimpleName)))
+      obj
+    }
+
+    implicit val pointsWrites = new Writes[Points[PointContext]] {
+      def writes(o: Points[PointContext]) = Json.obj(
+        "event" -> "points",
+        "data" -> Json.obj(
+          "name" -> lowerCaseWithUnderscore(o.getClass.getSimpleName),
+          "amount" -> o.amount,
+          "profileId" -> o.profileId,
+          "context" -> o.context.toJson
+        )
       )
     }
 

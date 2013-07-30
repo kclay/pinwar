@@ -1,3 +1,4 @@
+var $$ = {};
 (function ($$, w, d) {
     var store = window.localStorage;
 
@@ -111,7 +112,7 @@
                 WarAction: function (action) {
                     this.event("war_action",
                         {
-                            war: w.War.get("id"),
+                            war: w.War.id,
 
                             action: action
                         });

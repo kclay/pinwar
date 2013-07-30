@@ -9,13 +9,17 @@
 (function (ctx, w, d) {
 
 
+    var selfProfileId;
     var WarView = Backbone.View.extend({
 
+
+        active: false,
         war: null,
         initialize: function () {
             this.EVENTS.WarAccepted.on(this._onWarAccepted.bind(this));
             this.EVENTS.SYNC.on(this._onSync.bind(this))
             this.EVENTS.Points.on(this._onPoints.bind(this));
+            selfProfileId = this.DB.PROFILE().id;
             this.$action = this.$(".action");
             this.$points = this.$action.find(".points");
             this.$display = this.$action.find(".bottom");
@@ -34,22 +38,43 @@
              *  name:String
              * }
              */
-            var selfProfileId = this.me.player.get("id");
+
             var self = (data.profileId == selfProfileId);
             var classTypeAdd = self ? "me" : "opponent";
             var classTypeRemove = self ? "opponent" : "me";
-            var view = self ? this.me : this.opponent;
+
             $("body").addClass("point " + classTypeAdd).removeClass(classTypeRemove);
 
             this.$points.text("+" + data.amount);
-            this.$display.text(data.context.action);
+            this.$display.text(this.toDisplayName(data.name));
+            w.clearTimeout(this.clearTimeoutId);
 
+            this.clearTimeoutId = w.setTimeout(function () {
+                $("body").removeClass("point me opponent");
+            }, 5 * 1000);
 
         },
+        /**
+         * Translates an PointContext name to its display name
+         * @param name
+         * @returns {string}
+         */
+        toDisplayName: function (name) {
+            switch (name) {
+                case "pin":
+                    return "Created Pin";
+                case "repin":
+                    return "Repinned";
+                case "board":
+                    return "Created Board";
+            }
+        },
+
         _onWarAccepted: function (data) {
             this.$el.show();
-            var profileId = w.app.me.get("id");
+            this.active = true;
 
+            w.War = data.war;
             var points = (data.points || {});
             this.me = new PlayerView({
                 el: this.$(".left.profile"),
@@ -59,7 +84,7 @@
             })
             this.opponent = new PlayerView({
                 el: this.$(".right.profile"),
-                player: new Player((profileId == data.war.creatorId) ? data.opponent : data.creator),
+                player: new Player((selfProfileId == data.war.creatorId) ? data.opponent : data.creator),
                 points: points || 0,
                 progress: this.$(".progress.opponent")
             })

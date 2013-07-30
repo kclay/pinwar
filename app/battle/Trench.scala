@@ -68,6 +68,8 @@ class TrenchSub(ctx: BattleField) extends mutable.Subscriber[Message[(String, Ch
   def inviting(m: {val elem: Sub}) = ctx.invitesIds.contains(m.elem._1)
 
   def notify(pub: Trench, event: Message[Sub] with mutable.Undoable) {
+    // TODO : This should take the common boards that each player has and pick the correct users to play against for the first pass
+    // the second pass will check if we have a board theme for the common board, if not its a freeplay
     (event match {
       case i: Include[Sub] if (!inviting(i)) => Some(i.elem)
       case u: Update[Sub] if (!u.pending && u.blacklisted.isEmpty && !inviting(u)) => Some(u.elem)

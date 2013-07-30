@@ -114,9 +114,11 @@ function handleOnMessage(data) {
 
     }
 }
+var debug = true;
 chrome.runtime.onMessage.addListener(function (msg) {
     switch (msg.name) {
         case "ws:connect":
+
             if (!ws) {
                 ws = new WebSocket(msg.url);
 
@@ -127,6 +129,7 @@ chrome.runtime.onMessage.addListener(function (msg) {
             } else {
                 ws.onopen()
             }
+
 
             break;
         case "ws:send":

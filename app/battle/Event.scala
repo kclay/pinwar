@@ -40,6 +40,8 @@ object Extractor {
 
   case object ChallengeResponse extends CanBuild[ChallengeResponse]
 
+
+
   case object ChallengeRequest extends CanBuild[ChallengeRequest]
 
   case object WarAccepted extends CanBuild[WarAccepted]

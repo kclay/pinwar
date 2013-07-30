@@ -35,7 +35,9 @@ function init_ajax_hooks() {
 
         var toWatch = [
             /BoardResource/,
-            /FeedResource/
+            /FeedResource/,
+            /PinResource/,
+            /PinLikeResource/
             // /UserHomefeedResource/
         ]
         var GET = "GET";
@@ -51,7 +53,7 @@ function init_ajax_hooks() {
                     var Bundle = {};
                     Bundle.url = url;
 
-                    Bundle.resource = url.match(/\/([a-z]+Resource)/i)[0];
+                    Bundle.resource = url.match(/\/([a-z]+Resource)/i)[1];
 
                     switch (ajaxOptions.type) {
                         case GET:

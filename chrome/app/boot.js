@@ -129,6 +129,7 @@ function isUpperCase(str) {
 
     return true;
 }
+
 var Messages = {
     ChallengeRequest: "challenge_request",
     Feedback: "feedback",
@@ -142,64 +143,61 @@ var State = {
     IDLE: "IDLE",
     BATTLE: "BATTLE"
 }
-var viewMixins = {
-    MESSAGES: Messages,
-    STATE: State,
-    DB: {
-        CONFIRMATION: wrapDB("needsConfirmation"),
-        PROFILE: wrapDB("profile"),
-        REGISTERED: wrapDB("registered"),
-        STATE: wrapDB("appState", function (value) {
-            viewMixins.EVENTS.STATE_CHANGED(value);
-        })
-    },
-    EVENTS: {
-        _cache: {},
-        FEEDBACK: wrapEvent("message::feedback"),
-        ERROR: wrapEvent("message::error"),
-        CHALLENGE: wrapEvent("newChallenge"),
-        SYNC: wrapEvent("sync"),
+var SETTINGS = (function () {
+    var current = null;
+    var flushInterval;
 
-        STATE_CHANGED: wrapEvent("appStateChanged"),
-        REGISTERED: wrapEvent("registered", function () {
-            viewMixins.DB.REGISTERED(true);
-            viewMixins.DB.CONFIRMATION(false);
-        }),
-
-        MESSAGE: function (name) {
-            var f = this._cache[name];
-            if (!f) f = this._cache[name] = wrapEvent("message::" + name, function (name, args) {
-                $$.debug("Before event (?) with args = ? ", name, args)
-            }, function (name) {
-                $$.debug("After event (?)", name);
-            });
-
-            return f;
-        }
-
-    },
-
-
-    delay: function (callback, delay) {
-
-        setTimeout(callback.bind(this), delay);
-    },
-    dispatch: function () {
-        $$.Events.trigger.apply($$.Events, arguments);
-    },
-    feedback: function (message) {
-        $$.Events.trigger("feedback", message);
-    },
-    error: function (message) {
-
-        $$.Events.trigger("error", message)
+    var flush = function () {
+        clearInterval(flushInterval);
+        flushInterval = setTimeout(function () {
+            f(current);
+        }, 1);
     }
+    var f = wrapDB("settings", function (data) {
+        current = data;
+    });
+
+
+    return function (name, value) {
+        if (!current) {
+            current = f() || {};
+        }
+        if (typeof name == "object") {    // replace all
+            current = name;
+            flush();
+            return name;
+        }
+        if (typeof name == "undefined") {
+            return current;
+        }
+        if (typeof value == "undefined") {
+            return current[name];
+        } else {
+            current[name] = value;
+            flush();
+            return value;
+        }
+    }
+})();
+function wrapSetting(name, defaultValue, changed) {
+    if (typeof defaultValue == "function") {
+        changed = defaultValue;
+        defaultValue = null;
+    }
+    var f = function (value) {
+        var before = SETTINGS(name);
+        var after = SETTINGS(name, value);
+        if (before != after && changed) {
+            changed(after);
+        }
+        return after;
+    }
+    if (typeof SETTINGS(name) == "undefined")
+        f(defaultValue);
+
+    return f;
 
 }
-$.each(Messages, function (key, value) {
-    viewMixins.EVENTS[key] = viewMixins.EVENTS.MESSAGE(value);
-})
-$.extend(Backbone.View.prototype, viewMixins);
 
 
 window.likeus_script = function (url, attrs, callback) {
@@ -220,7 +218,7 @@ window.likeus_script = function (url, attrs, callback) {
 
     (document.head || document.documentElement).appendChild(s);
 }
-var $$ = {};
+
 var r20 = /%20/g;
 $$.Messages = Messages;
 $$.qs = (function () {
@@ -324,6 +322,90 @@ $$.ajax = function (endpoint, method, data) {
 
     })
 }
+
+
+var viewMixins = {
+    MESSAGES: Messages,
+    STATE: State,
+    SETTINGS: {
+        ALL: SETTINGS,
+        EMAIL: wrapSetting("email", function () {
+
+        }),
+        GAME_SOUND: wrapSetting("game-sounds", true),
+        INVITE_SOUND: wrapSetting("invitation-sound", true),
+        INVITE_EMAILS: wrapSetting("invite-emails", function () {
+
+        }),
+        WEEKLY_EMAILS: wrapSetting("weekly-emails", true, function () {
+
+        })
+
+
+    },
+    DB: {
+        CONFIRMATION: wrapDB("needsConfirmation"),
+        PROFILE: wrapDB("profile"),
+        REGISTERED: wrapDB("registered"),
+        STATE: wrapDB("appState", function (value) {
+            viewMixins.EVENTS.STATE_CHANGED(value);
+        })
+    },
+    EVENTS: {
+        _cache: {},
+        FEEDBACK: wrapEvent("message::feedback"),
+        ERROR: wrapEvent("message::error"),
+        CHALLENGE: wrapEvent("newChallenge"),
+        SYNC: wrapEvent("sync"),
+
+        STATE_CHANGED: wrapEvent("appStateChanged"),
+        REGISTERED: wrapEvent("registered", function () {
+            viewMixins.DB.REGISTERED(true);
+            viewMixins.DB.CONFIRMATION(false);
+        }),
+
+        MESSAGE: function (name) {
+            var f = this._cache[name];
+            if (!f) f = this._cache[name] = wrapEvent("message::" + name, function (name, args) {
+                $$.debug("Before event (?) with args = ? ", name, args)
+            }, function (name) {
+                $$.debug("After event (?)", name);
+            });
+
+            return f;
+        }
+
+    },
+
+
+    delay: function (callback, delay) {
+
+        setTimeout(callback.bind(this), delay);
+    },
+    dispatch: function () {
+        $$.Events.trigger.apply($$.Events, arguments);
+    },
+    feedback: function (message) {
+        this.EVENTS.FEEDBACK({
+            message: message
+        });
+
+    },
+    error: function (message) {
+
+        this.EVENTS.ERROR({
+            message: message
+        });
+    }
+
+}
+
+
+$.each(Messages, function (key, value) {
+    viewMixins.EVENTS[key] = viewMixins.EVENTS.MESSAGE(value);
+})
+$.extend(Backbone.View.prototype, viewMixins);
+
 var div = document.createElement("div");
 div.setAttribute("id", "likeus-config");
 div.style.display = "none";

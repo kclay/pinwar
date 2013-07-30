@@ -1,5 +1,11 @@
 @(implicit r: RequestHeader)
 
+    @radio(name: String) = {
+        <input id="@name-on" class="radio" name="@name" value="true" type="radio" />
+        <label for="@name-on"   class="radio-label">On</label>
+        <input id="@name-off" class="radio" name="@name" value="false" type="radio" />
+        <label for="@name-off"  class="radio-label off">Off</label>
+    }
 <script type="text/template" id="templateChallenge">
     <span><span class="name"></span> wants to fight you!</span>
     <input type="button" value="Accept" class="positive" id="accept"/>
@@ -11,6 +17,43 @@
     <span>Sorry, unable to find any challengers for you to battle</span>
     <input type="button" value="Try Again" class="positive" id="find"/>
 
+
+</script>
+<script type="text/template" id="templateSettings">
+    <div id="settings">
+        <h3>Your Settings</h3>
+        <table>
+            <tr>
+                <td class="l">
+                    <span>Change Email Address</span>
+                    <input type="text" id="email" value="ray.hernandez@@gmail.com"/>
+                </td>
+                <td class="r">
+                    <span>Invite Emails</span>
+                    @radio("invite-emails")
+                </td>
+            </tr>
+            <tr>
+                <td class="l">
+                    <span>In-Game Sound Effects</span>
+                    @radio("game-sounds")
+                </td>
+                <td class="r">
+                    <span>Weekly Emails</span>
+                    @radio("weekly-emails")
+                </td>
+            </tr>
+            <tr class="last">
+                <td class="l ">
+                    <span>Invitation Sound Effects</span>
+                    @radio("invitation-sound")
+                </td>
+                <td class="r ">
+                    <input type="button" id="save-settings" value="Update Settings" class=""/>
+                </td>
+            </tr>
+        </table>
+    </div>
 
 </script>
 @import tags._
@@ -79,7 +122,7 @@
     }
 <link rel="stylesheet" media="screen" href="@routes.Assets.at("stylesheets/app.css").absoluteURL()">
 <div id="pinwar" style="opacity:0;">
-
+       <a href="#" id="icon-settings" class="hidden">Settings</a>
     <div id="wrapper">
 
         <div id="signup" class="view">
@@ -121,7 +164,7 @@
 
         </div>
 
-        <div id="overview" class="view">
+        <div id="overview" class="view hidden">
             <div class="progress full"></div>
             <div class="centeredWithinWrapper">
                 @stats("left")

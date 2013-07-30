@@ -8,6 +8,7 @@ var AppView = Backbone.View.extend({
     _previousState: null,
     findTimeout: 60 * 2,
 
+
     initialize: function () {
 
 
@@ -59,6 +60,7 @@ var AppView = Backbone.View.extend({
 
         this.EVENTS.STATE_CHANGED.on(this._onStateChange.bind(this));
     },
+
     _onStateChange: function (state) {
         //this.DB.STATE(state);
         if (this._previousState) {
@@ -92,6 +94,7 @@ var AppView = Backbone.View.extend({
         this.signupView = new SignupView({el: this.$("#signup")});
         this.overviewView = new OverviewView({el: this.$("#overview")})
         this.feedbackView = new FeedbackView({el: this.$("#feedback")});
+        this.settingsView = new SettingsView({el: this.$el})
         this.warView = new WarView({el: this.$("#war")});
 
         //this.inviteView = new InviteView({el:this.$("#invite")});
@@ -170,6 +173,59 @@ var AppView = Backbone.View.extend({
 
 
 
+})
+
+var SettingsView = Backbone.View.extend({
+
+    events: {
+        "click #icon-settings": "showSettings",
+        "click #save-settings": "saveSettings"
+    },
+    initialize: function () {
+        this.templateSettings = $("#templateSettings").html();
+    },
+    saveSettings: function () {
+        var settings = this.SETTINGS.ALL();
+        var $view = $("#settings");
+        _.each(settings, function (value, key) {
+            var $input = $view.find("#" + key);
+            if ($input.length) {
+                settings[key] = $input.val();
+            } else {
+                var newValue = $view.find("input[name='" + key + "']:radio:checked").val();
+                settings[key] = newValue == "true" ? true : false;
+            }
+        })
+        this.SETTINGS.ALL()
+        this.debug("NewSettings = ? ", settings);
+    },
+
+    _showing: false,
+    showSettings: function () {
+        if (!this._showing) {
+            this.EVENTS.FEEDBACK({
+                message: this.templateSettings
+            });
+            var settings = this.SETTINGS.ALL();
+            var $view = $("#settings");
+            _.each(settings, function (value, key) {
+                var $on = $view.find("#" + key + "-on");
+                var $off = $view.find("#" + key + "-off");
+                var $input = $view.find("#" + key);
+                if ($off.length && $on.length) {
+                    ((value) ? $on : $off).attr("checked", "checked");
+
+                } else {
+                    $input.val(value);
+                }
+            })
+        } else {
+            this.feedback(null);
+        }
+        $("body").toggleClass("settings");
+        this._showing = !this._showing;
+        return false;
+    }
 })
 
 

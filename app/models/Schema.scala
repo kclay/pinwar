@@ -27,6 +27,8 @@ object Schema extends com.rethinkscala.Schema {
   val points = table[Point]("points")
   val stats = table[Stats]
 
+
+
   override protected def defineMapper = {
     val mapper = super.defineMapper
 

@@ -144,12 +144,10 @@ class WarSpec extends Specification {
             case Extractor.ChallengeRequest(cr) => {
 
 
-
-              client.send(ChallengeResponse(opponent.id, cr.token, false))
-             future{
-               client.send(ChallengeResponse(opponent.id, cr.token, accept))
-             }
-
+              client.send(ChallengeResponse(opponent.id, cr.token, false, me.id))
+              future {
+                client.send(ChallengeResponse(opponent.id, cr.token, accept, me.id))
+              }
 
 
             }

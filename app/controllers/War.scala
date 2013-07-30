@@ -236,7 +236,7 @@ object War extends Controller with WithCors {
             case Extractor.ChallengeResponse(cr) => master ! cr
 
 
-            //case a: Event.WarAction(_) =>
+            case Extractor.WarAction(wa) => master ! wa
 
 
           }
@@ -246,6 +246,6 @@ object War extends Controller with WithCors {
         _ => master ! Disconnect(profileId)
       }
 
-      (in, out)
+      (in, out &>Concurrent.buffer(100))
   }
 }

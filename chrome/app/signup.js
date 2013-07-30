@@ -22,6 +22,7 @@
 
         _onRegistered: function () {
             this.$el.fadeOut("slow");
+            $("#icon-settings").show();
         },
         check: function () {
 
@@ -70,6 +71,7 @@
                 profile: info
             }).done(function (data) {
                     this.DB.CONFIRMATION(true);
+                    this.SETTINGS.EMAIL(email);
                     this.feedback(data);
                 }.bind(this)).error(function (_, _, error) {
                     this.error(error);

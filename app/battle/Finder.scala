@@ -23,6 +23,8 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
 
   import utils.Serialization.Writes._
 
+  implicit val system = ctx.system
+
   implicit val exec: ExecutionContext = ctx.system.dispatcher
 
   private val p = promise[War]
@@ -37,11 +39,11 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
     handle.cancel()
   }
 
-  private val channel = ctx.trench.get(creatorId).get.channel
+  private val channel = ctx.trench.get(creatorId).get
   var passed = 0
   private val countdown = ctx.system.scheduler.schedule(INTERVAL seconds, INTERVAL seconds) {
     passed += INTERVAL
-    channel.push(Countdown(passed))
+    channel ! Countdown(passed)
 
 
   }
@@ -68,7 +70,7 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
     c => {
 
       // TODO Send email
-      c.channel.push(ChallengeRequest(ctx.challengeTokenFor(this), profile))
+      c ! (ChallengeRequest(ctx.challengeTokenFor(this), profile): JsValue)
     }
   }
 
@@ -79,7 +81,7 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
       future onSuccess {
         case war: War => {
           val profiles = Seq(creatorId, opponentId)
-          val msg = profiles.map(ctx.caches.profiles get _) match {
+          val msg: JsValue = profiles.map(ctx.caches.profiles get _) match {
             case Seq(c, o) => WarAccepted(c, o, war)
           }
           val ctxs = profiles.map(ctx.trench.get(_)).filter(_.isDefined)
@@ -88,7 +90,8 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
             ctx.pendingFinders += this
 
           } else {
-            ctxs.flatten.foreach(_.channel.push(msg))
+
+            ctxs.flatten.foreach(_ ! msg)
           }
 
 

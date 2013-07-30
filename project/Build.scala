@@ -23,7 +23,7 @@ object ApplicationBuild extends Build {
     //"org.squeryl" %% "squeryl" % "0.9.5-6",
     //"mysql" % "mysql-connector-java" % "5.1.10",
     //"com.h2database" % "h2" % "1.2.127",
-    "com.rethinkscala" %% "core" % "0.3-SNAPSHOT",
+    "com.rethinkscala" %% "core" % "0.4-SNAPSHOT",
     "com.typesafe" %% "play-plugins-mailer" % "2.1.0",
     "com.fasterxml.jackson.datatype" % "jackson-datatype-joda" % "2.1.1"
 

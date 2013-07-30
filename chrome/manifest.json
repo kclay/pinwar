@@ -25,8 +25,9 @@
                 "vendor/jquery.js",
                 "vendor/underscore.js",
                 "vendor/backbone.js",
-                "app/boot.js",
                 "app/platforms/chrome.js",
+                "app/boot.js",
+
                 "app/tracker.js",
                 "app/signup.js", "app/feedback.js", "app/overview.js", "app/war.js", "app/app.js" ]
         }

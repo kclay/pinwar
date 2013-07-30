@@ -360,6 +360,7 @@
         .font-bold;
 
         height: @height - 80px - @borderHeight;
+        line-height: @height - 80px - @borderHeight;
         font-size: 22px !important;
         color: white;
         text-align: center;
@@ -484,7 +485,7 @@
   #feedback {
     position: absolute;
     display: table;
-    .slideDown(-@height);
+    .slideDown(-@height - 35px);
     width: 100%;
     background: #333333;
     height: @feedbackHeight;
@@ -501,6 +502,10 @@
     }
     #countdown {
       font-size: 14px;
+    }
+    h3 {
+      font-size: 36px;
+      border-bottom: solid 2px rgba(255, 255, 255, 0.05);
     }
   }
 
@@ -615,11 +620,22 @@ body.point {
   transition: all @duration ease-in;
 }
 
+@settingsHeight: 170px;
 body.feedback {
 
   .App .headerBackground, .App .headerContainer {
 
     .slideDown(@height + @feedbackHeight,0)
+
+  }
+  &.settings {
+
+    .App .headerBackground, .App .headerContainer {
+      .slideDown(@height + @settingsHeight,0)
+    }
+    .App.full .appContent {
+      .slideDown(@appContentHeight + @settingsHeight,0)
+    }
 
   }
 
@@ -631,6 +647,109 @@ body.feedback {
   #pinwar #feedback {
 
     .slideDown(@borderHeight);
+
+  }
+}
+
+#pinwar {
+  input[type="radio"].radio {
+    position: absolute;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    height: 1px;
+    width: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+  }
+
+  input[type="radio"].radio + label.radio-label {
+    padding-left: 35px;
+    height: 22px;
+    margin-right: 10px;
+    display: inline-block;
+    line-height: 22px;
+    background-repeat: no-repeat;
+    background-position: 0 0;
+    font-size: 22px;
+    vertical-align: middle;
+    cursor: pointer;
+  }
+
+  input[type="radio"].radio:checked + label.radio-label {
+    background-position: 0 -22px;
+  }
+
+  .radio-label {
+    background-image: url('../images/check-on.png');
+    &.off {
+      background-image: url('../images/check-off.png');
+    }
+  }
+}
+
+
+#pinwar {
+
+  #icon-settings {
+    background: url('../images/icon-settings.png') no-repeat;
+    width: 25px;
+    height: 25px;
+    position: absolute;
+    top: 5px;
+    right: 5px;
+
+    z-index: 20;
+    text-indent: -99999px;
+  }
+  #settings {
+    padding-bottom: 5px;
+
+    #save-settings {
+      background: #00bf4d;
+      font-size: 22px;
+      font-weight: bold;
+    }
+    .last td {
+      margin-top: 30px;
+    }
+    #email {
+      margin-right: 73px;
+    }
+    input[type="text"] {
+      background: white;
+      border: none;
+      color: #333333;
+      height: 41px - 10px;
+      padding: 5px;
+      width: 311px;
+      font-size: 20px;
+    }
+    table {
+      .font-bold;
+      margin: 0 auto;
+      text-align: left;
+      font-size: 20px;
+      color: white;
+
+    }
+    .l {
+      span {
+        width: 250px;
+        margin-right: 24px;
+      }
+    }
+    .r {
+      span {
+        width: 147px;
+        margin-right: 24px;
+      }
+    }
+    width: 95%;
+    margin: 0 auto;
+    input[type="button"] {
+      width: 100%;
+    }
 
   }
 }

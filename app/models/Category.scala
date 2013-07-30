@@ -1,5 +1,7 @@
 package models
 
+import com.fasterxml.jackson.annotation.{JsonCreator, JsonValue}
+
 /**
  * Created by IntelliJ IDEA.
  * User: Keyston
@@ -9,8 +11,12 @@ package models
 
 object Category {
 
-  lazy val all = Seq(Popular, Everything, Gifts, Videos, Animals)
+  lazy val all = Seq(Popular, Everything, Gifts, Videos, Animals, Architecture, Art,
+    CarsMotorcycles, Celebrities, DIYCrafts, Design, Education, FilmMusicBooks, Gardening,
+    Geek, HairBeauty, HealthFitness, History, HolidaysEvents, HomeDecor, Humor, IllustrationsPosters, Kids, MensFashion,
+    Outdoors, Photography, Products, Quotes, ScienceNature, Sports, Tattoos, Technology, Travel, Weddings, WomensFashion)
 
+  def apply(name: String) = all.find(_.name == name)
 
 }
 
@@ -20,14 +26,20 @@ trait Category {
 
   import utils.StringHelper.lowerCaseWithUnderscore
 
+  @JsonCreator
+  def apply(name: String) = Category.all.find(_.name == name)
+
   private lazy val className = getClass.getSimpleName.replace("$", "")
+
   lazy val name: String = lowerCaseWithUnderscore(className)
 
   def unapply(n: Category) = if (n.equals(name)) Some(name) else None
 
   def displayName: String = className
-}
 
+  @JsonValue
+  override def toString = name
+}
 
 
 case object Popular extends Category
@@ -50,7 +62,7 @@ case object CarsMotorcycles extends Category {
 
 case object Celebrities extends Category
 
-case object DIYCrafts extends Category {
+case object DiyCrafts extends Category {
   override def displayName = "DIY & Crafts"
 }
 

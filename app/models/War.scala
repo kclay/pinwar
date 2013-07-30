@@ -1,16 +1,16 @@
 package models
 
-import akka.actor.Actor
-import java.util.UUID
 import com.rethinkscala.net.Document
 import Schema._
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonTypeInfo, JsonProperty}
-import battle.BattleAction
 import com.fasterxml.jackson.annotation.JsonTypeInfo.{As, Id}
-import com.rethinkscala.ast.{Literal, Sequence, Desc, Var}
-import org.joda.time.DateTime
+import com.rethinkscala.ast._
+import org.joda.time.{Period, DateTime}
+import play.api.libs.json.JsValue
 import com.rethinkscala.Implicits._
-import play.api.cache.Cache
+import com.rethinkscala.ast.Var
+import scala.Some
+import com.rethinkscala.ast.Desc
 
 /**
  * Created by IntelliJ IDEA.
@@ -51,7 +51,7 @@ case class Profile(id: String, username: String, name: String, email: String, av
 }
 
 
-case class Point(id: Option[String] = None, profileId: String, warId: String, context: PointContext, createdAt: DateTime) extends Document {
+case class Point(id: Option[String] = None, profileId: String, warId: String, context: PointContext, createdAt: DateTime = DateTime.now()) extends Document {
 
 
   def contextAs[T](implicit mf: Manifest[T]) = if (mf.runtimeClass isAssignableFrom (context.getClass)) Some(context.asInstanceOf[T]) else None
@@ -65,7 +65,35 @@ case class Stats(@JsonProperty("id") profileId: String, wins: Int = 0, loses: In
 }
 
 
-case class War(id: String, creatorId: String, opponentId: String) extends Document {
+object War {
+
+  import scala.util.Random
+
+  def create(creatorId: String, opponentId: String): Option[War] = {
+    val names = Category.all.map {
+      c => c.name: Datum
+    }
+
+    val q = (wars.filter {
+      v => v \ "creatorId" === creatorId or v \ "opponentId" === creatorId or v \ "creatorId" === opponentId or v \ "opponentId" === opponentId
+    } filter {
+      v => v \ "createdAt" >= DateTime.now().minus(Period.hours(2)).getMillis
+    }) \ "category" idiff (names: _*)
+
+    val category = (q.as[String] match {
+      case Left(e) => None
+      case Right(e) => e.headOption.map(Category(_))
+    }).flatten getOrElse Random.shuffle(Category.all).head
+
+
+    War(None, creatorId, opponentId, category) save match {
+      case Left(e) => None
+      case Right(r) => r.returnedValue[War]
+    }
+  }
+}
+
+case class War(id: Option[String] = None, creatorId: String, opponentId: String, category: Category, createdAt: DateTime = DateTime.now()) extends Document {
 
 
   def creator: Profile = ???
@@ -87,19 +115,59 @@ trait WithPoints extends WithProfile {
   val points: Int
 }
 
+
 @JsonTypeInfo(use = Id.CLASS, include = As.PROPERTY, property = "className")
-abstract class PointContext extends WithPoints
+abstract class PointContext extends WithPoints {
+  val warId: String
 
-case class Board(id: String, profileId: String, name: String, category: Category, url: String, points: Int) extends PointContext
+  @JsonIgnore
+  lazy val war = wars.get(warId).run match {
+    case Left(e) => None
+    case Right(w) => Some(w)
+  }
 
-case class Pin(id: String, boardId: String, profileId: String, points: Int) extends PointContext {
+  def toJson: JsValue
+}
+
+case class Board(id: String, warId: String, profileId: String, name: String, category: Category, url: String, points: Int) extends PointContext {
+
+  import utils.Serialization.Writes.boardWrites
+
+  def toJson: JsValue = boardWrites writes this
+}
+
+case class Pin(id: String, warId: String, boardId: String, profileId: String, points: Int) extends PointContext {
+
+  import utils.Serialization.Writes.pinWrites
+
   def board = ???
+
+  def toJson = pinWrites writes this
 
 
 }
 
-case class Repin(id: String, boardId: String, profileId: String, points: Int) extends PointContext
 
+case class Repin(id: String, warId: String, boardId: String, profileId: String, points: Int) extends PointContext {
+
+  import utils.Serialization.Writes.repinWrites
+
+  def toJson = repinWrites writes this
+}
+
+case class Comment(id: String, warId: String, pinId: String, profileId: String, points: Int) extends PointContext {
+
+  import utils.Serialization.Writes.commentWrites
+
+  def toJson = commentWrites writes this
+}
+
+case class Like(id: String, warId: String, profileId: String, points: Int) extends PointContext {
+
+  import utils.Serialization.Writes.likeWrites
+
+  def toJson = likeWrites writes this
+}
 
 case class Image(name: String, url: String, width: Int, height: Int)
 
