@@ -61,6 +61,7 @@ var AppView = Backbone.View.extend({
         this.EVENTS.STATE_CHANGED.on(this._onStateChange.bind(this));
     },
 
+
     _onStateChange: function (state) {
         //this.DB.STATE(state);
         if (this._previousState) {
@@ -204,7 +205,8 @@ var SettingsView = Backbone.View.extend({
     showSettings: function () {
         if (!this._showing) {
             this.EVENTS.FEEDBACK({
-                message: this.templateSettings
+                message: this.templateSettings,
+                autoClose: false
             });
             var settings = this.SETTINGS.ALL();
             var $view = $("#settings");

@@ -319,6 +319,9 @@
 
       color: @red;
       border-bottom: @borderHeight solid @red;
+      width: 100%;
+      display: inline-block;
+      text-align: center;
     }
     img {
 
@@ -361,7 +364,7 @@
 
         height: @height - 80px - @borderHeight;
         line-height: @height - 80px - @borderHeight;
-        font-size: 22px !important;
+        font-size: 18px !important;
         color: white;
         text-align: center;
 
@@ -466,9 +469,18 @@
         background: @opponentActionMainColor;
       }
     }
+    @profileWidth: @profileImageWidth + @profileImageMargin + ((@barWidth + @barMargin) * @barCount)- @barMargin;
     .profile {
 
-      width: @profileImageWidth + @profileImageMargin + ((@barWidth + @barMargin) * @barCount)- @barMargin;
+      overflow: hidden;
+
+      width: @profileWidth;
+      .username {
+        width: @profileWidth - @profileImageMargin - @profileImageWidth;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+      }
 
     }
   }
@@ -497,8 +509,10 @@
       margin-right: 10px;
     }
     .inner {
-      display: table-cell;
-      vertical-align: middle;
+      text-align: center;
+
+      padding-top: 10px;
+      padding-bottom:10px;
     }
     #countdown {
       font-size: 14px;
@@ -514,21 +528,28 @@
   .left {
     .points >div {
       float: left;
+      position: relative;
       margin-right: @barMargin;
       &:last-child {
         margin-right: 0px;
       }
     }
   }
+
   .info .points {
     padding-top: 9px;
     img {
+      left: 0px;
       height: 0%;
+      width: 100%;
+      bottom: 0px;
+      position: absolute;
     }
 
   }
   .right {
     .points >div {
+      position: relative;
       float: right;
       margin-left: @barMargin;
       &:last-child {
@@ -687,7 +708,6 @@ body.feedback {
     }
   }
 }
-
 
 #pinwar {
 

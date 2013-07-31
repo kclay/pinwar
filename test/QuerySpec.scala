@@ -28,13 +28,17 @@ class QuerySpec extends Specification {
       private val version = Version1(host.getOrElse("localhost"))
       implicit val connection = Connection(version)
 
+
+      val profiles = r.table[Profile]("testing_profiles")
+
+      profiles.insert(Profile("a", "", "", "", ""))
       val wars = r.table[War]("testing_wars")
       wars.create.run
 
       val cats = Category.all
-      wars.insert(Seq(
-        War("1", "a", "b", cats(0)), War("2", "a", "b", cats(1)), War("3", "a", "b", cats(2))
-      )) run
+
+
+      w.right.get.returnedValue[War]
 
       val creatorId = "a"
       val opponentId = "b"

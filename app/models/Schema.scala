@@ -2,6 +2,11 @@ package models
 
 import com.rethinkscala.net.{Connection, Version1}
 import com.fasterxml.jackson.datatype.joda.JodaModule
+import com.fasterxml.jackson.databind.module.SimpleModule
+
+
+import com.fasterxml.jackson.databind.{DeserializationContext, JsonDeserializer}
+import com.fasterxml.jackson.core.JsonParser
 
 
 /**
@@ -10,6 +15,8 @@ import com.fasterxml.jackson.datatype.joda.JodaModule
  * Date: 7/15/13
  * Time: 9:12 AM 
  */
+
+
 object Schema extends com.rethinkscala.Schema {
 
   import play.api.Play.current
@@ -27,12 +34,23 @@ object Schema extends com.rethinkscala.Schema {
   val points = table[Point]("points")
   val stats = table[Stats]
 
+  val boards = table[Board]
+
+
+  class CategoryDeserializer extends JsonDeserializer[Category] {
+    def deserialize(jp: JsonParser, ctxt: DeserializationContext) = {
+      Category(jp.getText) getOrElse (Unknown)
+    }
+  }
 
 
   override protected def defineMapper = {
     val mapper = super.defineMapper
 
+    val custom = new SimpleModule("PinWarModule")
+    custom.addDeserializer(classOf[Category], new CategoryDeserializer)
     mapper.registerModule(new JodaModule)
+    mapper.registerModule(custom)
     mapper
   }
 }

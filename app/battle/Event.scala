@@ -65,7 +65,7 @@ case class NewWar(profileId: String, opponentId: String)
 
 case class Disconnect(profileId: String)
 
-case class Connect(profileId: String, channel: Channel[JsValue])
+case class Connect(profileId: String, channel: Channel[JsValue],fromInvite:Boolean)
 
 case class Find(profileId: String) extends Event
 

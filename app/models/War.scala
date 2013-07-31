@@ -2,7 +2,7 @@ package models
 
 import com.rethinkscala.net.Document
 import Schema._
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonTypeInfo, JsonProperty}
+import com.fasterxml.jackson.annotation.{JsonCreator, JsonIgnore, JsonTypeInfo, JsonProperty}
 import com.fasterxml.jackson.annotation.JsonTypeInfo.{As, Id}
 import com.rethinkscala.ast._
 import org.joda.time.{Period, DateTime}
@@ -11,6 +11,7 @@ import com.rethinkscala.Implicits._
 import com.rethinkscala.ast.Var
 import scala.Some
 import com.rethinkscala.ast.Desc
+import scala.util.{Try, Failure, Success}
 
 /**
  * Created by IntelliJ IDEA.
@@ -42,8 +43,10 @@ case class Profile(id: String, username: String, name: String, email: String, av
   @JsonIgnore
   lazy val stats = Schema.stats.get(id).run.fold(_ => Stats(id), x => x)
 
-
-  beforeInsert(() => afterInsert(() => Schema.stats.insert(Stats(id)).run))
+  /*
+  override protected def afterInsert {
+    Schema.stats.insert(Stats(id)).run
+  } */
 
 
   def rankBy(from: DateTime, to: DateTime) = _rank(Schema.stats.filter((v: Var) => ((v \ "createdAt") >= from.getMillis) and ((v \ "createdAt") <= to.getMillis)))
@@ -60,7 +63,7 @@ case class Point(id: Option[String] = None, profileId: String, warId: String, co
 }
 
 
-case class Stats(@JsonProperty("id") profileId: String, wins: Int = 0, loses: Int = 0, points: Int = 0) extends Document {
+case class Stats(@JsonProperty("id") profileId: String, wins: Int = 0, loses: Int = 0, points: Int = 0, battles: Int = 0) extends Document {
   def rank = (wins / (if (loses == 0) 1 else loses)) * points
 }
 
@@ -68,6 +71,7 @@ case class Stats(@JsonProperty("id") profileId: String, wins: Int = 0, loses: In
 object War {
 
   import scala.util.Random
+
 
   def create(creatorId: String, opponentId: String): Option[War] = {
     val names = Category.all.map {
@@ -82,19 +86,25 @@ object War {
 
     val category = (q.as[String] match {
       case Left(e) => None
-      case Right(e) => e.headOption.map(Category(_))
+      case Right(e) => Random.shuffle(e).headOption.map(Category(_))
     }).flatten getOrElse Random.shuffle(Category.all).head
 
 
-    War(None, creatorId, opponentId, category) save match {
+
+    War(None, creatorId, opponentId, Rules(category)) save match {
       case Left(e) => None
       case Right(r) => r.returnedValue[War]
     }
   }
 }
 
-case class War(id: Option[String] = None, creatorId: String, opponentId: String, category: Category, createdAt: DateTime = DateTime.now()) extends Document {
 
+case class Rules(category: Category, hashtag: Option[String] = Some("#pinterestwars"))
+
+case class War(id: Option[String] = None, creatorId: String, opponentId: String, rules: Rules, createdAt: DateTime = DateTime.now()) extends Document {
+
+
+  def category = rules.category
 
   def creator: Profile = ???
 
@@ -107,7 +117,7 @@ case class War(id: Option[String] = None, creatorId: String, opponentId: String,
 trait WithProfile extends Document {
   val profileId: String
 
-  def profile = ???
+  def profile: Option[Profile] = profiles.get(profileId).asOpt
 }
 
 
@@ -125,6 +135,8 @@ abstract class PointContext extends WithPoints {
     case Left(e) => None
     case Right(w) => Some(w)
   }
+
+  lazy val contextType = utils.StringHelper.lowerCaseWithUnderscore(getClass)
 
   def toJson: JsValue
 }

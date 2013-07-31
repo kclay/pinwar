@@ -88,6 +88,7 @@ object War extends Controller with WithCors {
       signups.get(token) run match {
         case Left(e) => BadRequest("Invalid Token")
         case Right(s) => {
+
           s.copy(activated = true).replace
           Ok("Thanks for confirming your account, get ready to battle!")
         }
@@ -166,7 +167,7 @@ object War extends Controller with WithCors {
   }
 
 
-  def index(profileId: String) = WebSocket.using[JsValue] {
+  def index(profileId: String, fromInvite: Boolean) = WebSocket.using[JsValue] {
     implicit request =>
     // new client
 
@@ -180,7 +181,7 @@ object War extends Controller with WithCors {
       var profile = (profiles get profileId run).right.toOption
 
 
-      master ! Connect(profileId, channel)
+      master ! Connect(profileId, channel, fromInvite)
       val in = Iteratee.foreach[JsValue] {
         js =>
           play.api.Logger.info(js.toString())
@@ -208,7 +209,10 @@ object War extends Controller with WithCors {
             case Extractor.Find(f) => {
               (master.ask(f)(ctx.findTimeout)) onComplete {
                 case Success(w: models.War) =>
-                case Failure(e) => channel.push(e)
+                case Failure(e) => {
+                  println(s"Find Failure ${e.getMessage}")
+                  channel.push(e)
+                }
                 case _ =>
               }
 
@@ -238,6 +242,8 @@ object War extends Controller with WithCors {
 
             case Extractor.WarAction(wa) => master ! wa
 
+            case x: Any => play.api.Logger.error(s"Recieved malformed json ${js.toString}")
+
 
           }
 
@@ -246,6 +252,6 @@ object War extends Controller with WithCors {
         _ => master ! Disconnect(profileId)
       }
 
-      (in, out &>Concurrent.buffer(100))
+      (in, out &> Concurrent.buffer(100))
   }
 }

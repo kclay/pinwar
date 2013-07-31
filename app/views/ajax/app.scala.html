@@ -2,9 +2,9 @@
 
     @radio(name: String) = {
         <input id="@name-on" class="radio" name="@name" value="true" type="radio" />
-        <label for="@name-on"   class="radio-label">On</label>
+        <label for="@name-on" class="radio-label">On</label>
         <input id="@name-off" class="radio" name="@name" value="false" type="radio" />
-        <label for="@name-off"  class="radio-label off">Off</label>
+        <label for="@name-off" class="radio-label off">Off</label>
     }
 <script type="text/template" id="templateChallenge">
     <span><span class="name"></span> wants to fight you!</span>
@@ -122,7 +122,7 @@
     }
 <link rel="stylesheet" media="screen" href="@routes.Assets.at("stylesheets/app.css").absoluteURL()">
 <div id="pinwar" style="opacity:0;">
-       <a href="#" id="icon-settings" class="hidden">Settings</a>
+    <a href="#" id="icon-settings" class="hidden">Settings</a>
     <div id="wrapper">
 
         <div id="signup" class="view">
@@ -223,7 +223,7 @@
         </div>
     </div>
     <div id="feedback">
-        <div class="inner">
+        <div class="inner centeredWithinWrapper">
             <span>Your friend <strong>Keyston Clay</strong> wants to fight you!</span>
             <input type="button" value="Accept" class="positive" id="accept"/>
             <input type="button" value="Decline" class="negative" id="decline"/>

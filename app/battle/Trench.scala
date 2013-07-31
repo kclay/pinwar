@@ -84,6 +84,7 @@ class TrenchSub(ctx: BattleField) extends mutable.Subscriber[Message[(String, Ch
 
             logger.info("Found a pending users, removing from queue and resolving Finder")
             ctx.pendingFinders.remove(0)
+            ctx.finders += finder
             // update opponent state
             pub :=+ opponentId
             finder request opponentId

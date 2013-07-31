@@ -35,6 +35,7 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
 
 
   def destroy = {
+
     countdown.cancel()
     handle.cancel()
   }
@@ -49,9 +50,12 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
   }
   private val handle: Cancellable = ctx.system.scheduler.scheduleOnce(timeout.duration) {
     countdown.cancel()
-    val index = ctx.pendingFinders.indexOf(this)
+    var index = ctx.pendingFinders.indexOf(this)
     if (index > -1)
       ctx.pendingFinders.remove(index)
+    index = ctx.finders.indexOf(this)
+    if (index > -1)
+      ctx.finders.remove(index)
     p.failure(FinderTimeout(creatorId))
 
   }
@@ -96,6 +100,9 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
 
 
         }
+      }
+      future onFailure {
+        case x: Throwable => println(x)
       }
       p.completeWith(ctx.master.ask(NewWar(creatorId, opponentId))(Timeout(20 seconds)).mapTo[War])
 

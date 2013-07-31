@@ -41,8 +41,10 @@ var $$ = {};
             var profile = this.db("profile");
             profile.email = "";
             var profileId = profile.id;
+            var url = $$.path("war/" + profileId).replace("http:", "ws:") + "/";
+            url += ($$.qs.challenge) ? "true" : "false"
 
-            send({name: "ws:connect", url: $$.path("war/" + profileId).replace("http:", "ws:")})
+            send({name: "ws:connect", url: url })
 
             page._webSocket = {
                 queue: null,

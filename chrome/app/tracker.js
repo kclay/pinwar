@@ -51,6 +51,34 @@
         }
     }
 
+
+    var resolveCategory = function (pin, callback) {
+        var onBoardPage = $(".BoardPage").length;
+        var onFeedPage = $("h1.feedName") && window.location.href.indexOf("/all/") != -1;
+        var boardUrl;
+
+        if (onFeedPage) {
+            var parts = window.location.href.split("/")
+            return callback(parts[parts.length - 1])
+        }
+        if (onBoardPage) {
+
+            boardUrl = window.location.href;
+        } else {
+            boardUrl = $("a[href='/pin/" + pin + "/']").parents(".pinWrapper").find(".pinCredits a:last").attr("href")
+        }
+
+        if (boardUrl) {
+            $.get(boardUrl, '', function (json) {
+                try {
+                    var category = json.page_info.meta["pinterestapp:category"];
+                    callback(category);
+                } catch (e) {
+                }
+
+            }, 'json');
+        }
+    }
     /**
      *
      * @param bundle
@@ -63,14 +91,15 @@
         return data;
     }
     var Actions = {
-        Like: function (id) {
+        Like: function (id, category) {
 
             return {
                 action: "like",
-                id: id
+                id: id,
+                category: category
             }
         },
-        Repin: function (id, board_id, images) {
+        Repin: function (id, board_id, category, images) {
 
             /**
              * images = {
@@ -84,7 +113,8 @@
             return {
                 action: "repin",
                 id: id,
-                board: board_id,
+                category: category,
+                boardId: board_id,
                 images: images
             }
         },
@@ -102,18 +132,27 @@
             return {
                 action: "pin",
                 id: id,
-                board: board_id,
+                boardId: board_id,
                 images: images
             }
         },
-        CreateBoard: function (id, name, category, url) {
+        CreateBoard: function (id, name, category, description, url) {
 
             return {
                 action: "board",
                 id: id,
                 name: name,
+                description: description,
                 category: category,
                 url: url
+            }
+        },
+        Comment: function (id, pinId, category) {
+            return{
+                action: "comment",
+                id: id,
+                pinId: pinId,
+                category: category
             }
         }
 
@@ -128,7 +167,7 @@
         var resp = bundle.response;
         var data = resp.resource_response.data;
         if (data) {
-            var action = new Actions.CreateBoard(data.id, data.name, data.category, data.url)
+            var action = new Actions.CreateBoard(data.id, data.name, data.category, data.description, data.url)
             $$.debug("BoardResource = ? ", action);
 
             track(action);
@@ -139,21 +178,25 @@
 
     var withImages = function (data) {
         var images = [];
-        $(data.images || []).each(function (name) {
-            var image = this;
-            image.name = name;
-            images.push(image);
+        _.each(data.images, function (value, key) {
+
+            value.name = key;
+            images.push(value);
         })
         return images;
     }
     trackers.RepinResource = function (/** Bundle **/ bundle) {
         var resp = bundle.response;
+        var pinId = resp.resource.options.pin_id;
         var data = resp.resource_response.data;
 
+        resolveCategory(pinId, function (category) {
+            var action = new Actions.Repin(data.id, data.board.id, category, withImages(data));
 
-        var action = new Actions.Repin(data.id, data.board.id, withImages(data));
+            track(action);
 
-        track(action);
+        })
+
     }
 
 
@@ -169,9 +212,22 @@
     trackers.PinLikeResource = function (/** Bundle **/ bundle) {
         var resp = bundle.response;
         var data = resp.resource.options;
+        var pinId = data.pin_id;
+        resolveCategory(pinId, function (category) {
+            var action = new Actions.Like(pinId, category);
+            track(action);
+        });
+    }
 
-        var action = new Actions.Like(data.pin_id);
-        track(action);
+    trackers.PinCommentResource = function (/** Bundle **/ bundle) {
+        var resp = bundle.response;
+        var data = resp.resource_response.data;
+
+        var pinId = resp.resource.options.pin_id;
+        resolveCategory(pinId, function (category) {
+            var action = new Actions.Comment(data.id, pinId, category)
+            track(action);
+        })
     }
 
 

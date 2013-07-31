@@ -1,6 +1,6 @@
 package models
 
-import com.fasterxml.jackson.annotation.{JsonCreator, JsonValue}
+import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonProperty, JsonCreator, JsonValue}
 
 /**
  * Created by IntelliJ IDEA.
@@ -11,27 +11,29 @@ import com.fasterxml.jackson.annotation.{JsonCreator, JsonValue}
 
 object Category {
 
-  lazy val all = Seq(Popular, Everything, Gifts, Videos, Animals, Architecture, Art,
-    CarsMotorcycles, Celebrities, DIYCrafts, Design, Education, FilmMusicBooks, Gardening,
+  lazy val special: Seq[Category] = Seq(Gifts, Videos)
+  lazy val specialCreateable: Seq[Category] = Seq(ForDad)
+  lazy val all: Seq[Category] = Seq(Animals, Architecture, Art,
+    CarsMotorcycles, Celebrities, DiyCrafts, Design, Education, FilmMusicBooks, FoodDrink, Gardening,
     Geek, HairBeauty, HealthFitness, History, HolidaysEvents, HomeDecor, Humor, IllustrationsPosters, Kids, MensFashion,
-    Outdoors, Photography, Products, Quotes, ScienceNature, Sports, Tattoos, Technology, Travel, Weddings, WomensFashion)
+    Outdoors, Photography, Products, Quotes, ScienceNature, Sports, Tattoos, Technology, Travel, Weddings, WomensFashion, NoCategory, Other)
 
-  def apply(name: String) = all.find(_.name == name)
+
+  def apply(n: String) = all.find(_.name == n)
 
 }
 
 case class A(f: String, b: String)
 
+
 trait Category {
 
   import utils.StringHelper.lowerCaseWithUnderscore
 
-  @JsonCreator
-  def apply(name: String) = Category.all.find(_.name == name)
 
   private lazy val className = getClass.getSimpleName.replace("$", "")
 
-  lazy val name: String = lowerCaseWithUnderscore(className)
+  lazy val name: String = lowerCaseWithUnderscore(getClass)
 
   def unapply(n: Category) = if (n.equals(name)) Some(name) else None
 
@@ -39,10 +41,15 @@ trait Category {
 
   @JsonValue
   override def toString = name
+
 }
 
 
+case object ForDad extends Category
+
 case object Popular extends Category
+
+case object FoodDrink extends Category
 
 case object Everything extends Category
 
@@ -55,6 +62,8 @@ case object Animals extends Category
 case object Architecture extends Category
 
 case object Art extends Category
+
+case object Other extends Category
 
 case object CarsMotorcycles extends Category {
   override def displayName = "Cars & Motorcycles"
@@ -136,4 +145,10 @@ case object Weddings extends Category
 
 case object WomensFashion extends Category {
   override def displayName = "Women's Fashion"
+}
+
+case object Unknown extends Category
+
+case object NoCategory extends Category {
+  override lazy val name = "none"
 }

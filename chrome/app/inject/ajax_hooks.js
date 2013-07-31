@@ -34,10 +34,11 @@ function init_ajax_hooks() {
         }
 
         var toWatch = [
-            /BoardResource/,
-            /FeedResource/,
-            /PinResource/,
-            /PinLikeResource/
+            "BoardResource/create",
+            // /FeedResource/,
+            "PinResource/create",
+            "PinLikeResource/create",
+            "RepinResource/create"
             // /UserHomefeedResource/
         ]
         var GET = "GET";
@@ -48,8 +49,9 @@ function init_ajax_hooks() {
 
         function onAjaxSend(event, xhr, ajaxOptions) {
             var url = ajaxOptions.url;
-            $(toWatch).each(function () {
-                if (url.match(this)) {
+            $(toWatch).each(function (index, value) {
+
+                if (url.indexOf(value) != -1) {
                     var Bundle = {};
                     Bundle.url = url;
 

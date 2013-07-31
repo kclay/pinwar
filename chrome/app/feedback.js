@@ -20,14 +20,15 @@
             this.EVENTS.ChallengeRequest.on(this._onChallengeRequested.bind(this))
         },
 
-        _onFeedback: function (data, autoClose) {
-            if (this._feedback(data, autoClose)) {
+        _onFeedback: function (data) {
+            if (this._feedback(data)) {
                 $body.addClass("feedback").removeClass("error")
             }
 
         },
-        _feedback: function (data, autoClose) {
-            var message = (data || {}).message;
+        _feedback: function (data) {
+            data = data || {};
+            var message = data.message;
             var fade = $body.hasClass("feedback") || $body.hasClass("error");
             if (!message) {
                 $body.removeClass("error feedback");
@@ -45,16 +46,17 @@
                 if (this._feedbackId) {
                     clearTimeout(this._feedbackId);
                 }
-                if (typeof autoClose == autoClose || autoClose) {
+                if (data.autoClose !== false) {
+                    var delay = typeof data.autoClose == "undefined" || data.autoClose == true ? 5000 : data.autoClose;
                     this._feedbackId = setTimeout(function () {
                         $body.removeClass("error feedback");
-                    }, autoClose === true ? 10 * 1000 : autoClose);
+                    }, delay);
                 }
                 return true;
             }
         },
-        _onError: function (data, autoClose) {
-            if (this._feedback(data, autoClose)) {
+        _onError: function (data) {
+            if (this._feedback(data)) {
                 $body.addClass("feedback error")
             }
 
@@ -69,7 +71,10 @@
         _sendChallengeResponse: function (accept) {
             w.clearInterval(this._countdownInterval);
             if (accept) {
-                this._feedback("Waiting for " + this._currentChallengeRequest.profile.name + " to join");
+                this._feedback({
+                    message: "Waiting for " + this._currentChallengeRequest.profile.name + " to join",
+                    autoClose: false
+                });
             } else {
                 $body.removeClass("feedback");
             }
@@ -84,7 +89,8 @@
             var feedback = this.challengeTemplate.find(".name").text(profile.name).end().html();
 
             this.EVENTS.FEEDBACK({
-                message: feedback
+                message: feedback,
+                autoClose: false
             })
             var timeout = this.challengeTimeout;
             var $countdown = this.$("#countdown");

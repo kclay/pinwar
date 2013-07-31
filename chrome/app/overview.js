@@ -53,7 +53,8 @@
             this.DB.STATE(this.STATE.FINDING);
             this.ws.Find();
             this.EVENTS.FEEDBACK({
-                message: "Searching for someone to battle..."
+                message: "Searching for someone to battle...",
+                autoClose: false
             })
             this.$progress.width("0%").show();
             this._findInterval = w.setInterval(function () {
@@ -92,6 +93,7 @@
                 w.clearInterval(this._findInterval);
                 this.EVENTS.ERROR({
                     message: $("#templateNoChallengers").html()
+
                 })
             }
 

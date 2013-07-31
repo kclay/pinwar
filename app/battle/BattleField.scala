@@ -24,6 +24,7 @@ import models.War
 import net.sf.ehcache.event.CacheEventListener
 import net.sf.ehcache.{Element, Ehcache}
 import scala.reflect.ClassTag
+import scala.util.Try
 
 
 /**
@@ -44,6 +45,9 @@ case class ChannelContext(actorPath: ActorPath, pending: Boolean = false, blackl
 
 }
 
+object BattleConfig {
+  lazy val pointsNeededToWin = play.api.Play.configuration(play.api.Play.current).getInt("points.toWin").get
+}
 
 object BattleField {
 
@@ -138,6 +142,9 @@ class BattleField {
   val pendingFinders = mutable.ArrayBuffer.empty[Finder]
 
 
+  val finders = mutable.ArrayBuffer.empty[Finder]
+
+
   val trench = new Trench(this)
 
   trench.subscribe(sub)
@@ -181,9 +188,16 @@ class BattleField {
 
 
 case class Connection(channel: Channel[JsValue]) extends Actor with ActorLogging {
+
+  override def unhandled(message: Any) {
+    super.unhandled(message)
+  }
+
   def receive = {
     case item: JsValue => channel.push(item)
+
     case x: Any => log info x.toString
+    case _ =>
   }
 }
 
@@ -233,16 +247,19 @@ class BattleFieldWorker(masterPath: ActorPath) extends Worker(masterPath) {
   val ProfileId = "profile_([0-9]+)".r
 
   private def processWork(ref: ActorRef, work: Any): Unit = work match {
-    case Connect(profileId, channel) => {
+    case Connect(profileId, channel, fromInvite) => {
       val connection = context.system.actorOf(Props(Connection(channel)), name = s"profile_${profileId}")
       watch(connection)
-      trench += (profileId -> ChannelContext(connection.path))
+      trench += (profileId -> ChannelContext(connection.path, pending = fromInvite))
     }
 
 
     case Terminated(actor) => {
       actor.path.name match {
-        case ProfileId(profileId) => self ! Disconnect(profileId)
+        case ProfileId(profileId) => {
+          unwatch(actor)
+          self ! Disconnect(profileId)
+        }
         case _ =>
       }
 
@@ -253,6 +270,10 @@ class BattleFieldWorker(masterPath: ActorPath) extends Worker(masterPath) {
 
       // update state
       trench :=+ profileId
+      Try(profileFor(profileId)) match {
+        case Failure(e) => println(e)
+        case _ =>
+      }
       val profile = profileFor(profileId)
       val finder = find(profile, ref, findTimeout.duration)
       trench.collectFirst {
@@ -275,7 +296,8 @@ class BattleFieldWorker(masterPath: ActorPath) extends Worker(masterPath) {
 
     }
 
-    case ChallengeResponse(profileId, token, accepted, creatorId) => {
+    case cr@ChallengeResponse(profileId, token, accepted, creatorId) => {
+      log info s"Processing $cr"
       challengeTokens remove (token) match {
         case Some(finder) => finder resolve(profileId, accepted)
         case _ => {
@@ -292,6 +314,7 @@ class BattleFieldWorker(masterPath: ActorPath) extends Worker(masterPath) {
         case Some((creatorId, email)) => {
           if (accept) {
             // update status to pending
+            trench :=+ creatorId
             trench :=+ opponentId
             // try to resolve the invite
             newWar(sender, creatorId, opponentId) pipeTo ref
@@ -332,7 +355,7 @@ class BattleFieldWorker(masterPath: ActorPath) extends Worker(masterPath) {
         }
       }
 
-      ref ! token.getOrElse(Status.Failure(new Error(s"You already have an invite pending for ")))
+      ref ! token.getOrElse(Status.Failure(new Error(s"You already have an invite pending for ${email}")))
 
 
     }
@@ -349,7 +372,7 @@ class BattleFieldWorker(masterPath: ActorPath) extends Worker(masterPath) {
         war map {
           w =>
 
-            val battle = context.system.actorOf(Props(new WarBattle(w, creatorId, opponentId, creator.actorPath, opponent.actorPath)), name = s"war_${w.id.get}")
+            context.system.actorOf(Props(new WarBattle(w, creatorId, opponentId, creator.actorPath, opponent.actorPath)), name = s"war_${w.id.get}")
 
 
 
@@ -387,16 +410,18 @@ class BattleFieldWorker(masterPath: ActorPath) extends Worker(masterPath) {
           c ! PoisonPill
           invitesIds -= profileId
 
-
-          pendingFinders.find(_.creatorId == profileId).map {
-            f => {
-              log info s"Destorying finder for $profileId"
-              f.destroy
-              val index = pendingFinders.indexOf(f)
-              if (index != -1)
-                pendingFinders.remove(index)
+          Seq(finders, pendingFinders).map {
+            c => c.find(_.creatorId == profileId).map {
+              f => {
+                log info s"Destorying finder for $profileId"
+                f.destroy
+                val index = c.indexOf(f)
+                if (index != -1)
+                  c.remove(index)
+              }
             }
           }
+
           challengeTokens retain ((t, f) => f.creatorId != profileId)
           invites.retain((k, v) => v != profileId)
         }
@@ -419,6 +444,7 @@ class WarBattle(war: War, creatorId: String, opponentId: String, creatorPath: Ac
 
   import utils.Serialization.Writes.{pointsWrites, throwable2Json, appError2Json}
 
+  import com.rethinkscala.Implicits._
 
   import BattleField.instance.{activeWars, caches}
 
@@ -427,6 +453,12 @@ class WarBattle(war: War, creatorId: String, opponentId: String, creatorPath: Ac
   val opponent = context.system.actorFor(opponentPath)
   val channels = Seq(creator, opponent)
 
+  val pointsNeededToWin = BattleConfig.pointsNeededToWin
+  var creatorPoints = 0
+  var opponentPoints = 0
+
+
+  def countBattle(id: String) = stats.get(id).update(s => s \ "battles" add 1) run
 
   override def preStart() {
     super.preStart()
@@ -435,6 +467,8 @@ class WarBattle(war: War, creatorId: String, opponentId: String, creatorPath: Ac
     //  activeWars += (creatorId -> war.id)
     //activeWars += (opponentId -> war.id)
 
+    countBattle(creatorId)
+    countBattle(opponentId)
     log.info(s"Started War = ${war.id}")
   }
 
@@ -450,6 +484,12 @@ class WarBattle(war: War, creatorId: String, opponentId: String, creatorPath: Ac
   }
 
 
+  def creatorContext = (creatorId, creatorPoints)
+
+  def opponentContext = (opponentId, opponentPoints)
+
+  def contexts = Seq(creatorContext, opponentContext)
+
   override def postStop() {
     super.postStop()
     unwatch(creator)
@@ -457,6 +497,27 @@ class WarBattle(war: War, creatorId: String, opponentId: String, creatorPath: Ac
     //activeWars remove creatorId
     //activeWars remove opponentId
   }
+
+
+  def checkPoints = {
+
+    val mayWin = ((creatorPoints >= pointsNeededToWin), (opponentPoints >= pointsNeededToWin)) match {
+      case (true, _) => Some(creatorId, opponentId)
+      case (_, true) => Some(opponentId, creatorId)
+      case _ => None
+
+    }
+    mayWin map {
+      case (won, lose) => {
+        stats.get(won).update(s => s \ "wins" add 1) run
+
+        stats.get(lose).update(s => s \ "loses" add 1) run
+      }
+    }
+
+  }
+
+  def ctxFor(profileId: String) = if (creatorId == profileId) creator else opponent
 
   def receive = {
     case Terminated(r) if (r == creator || r == opponent) => notifyDisconnect(if (r == creator) creatorId else opponentId)
@@ -469,11 +530,20 @@ class WarBattle(war: War, creatorId: String, opponentId: String, creatorPath: Ac
         case Right(p) => {
           log.debug(s"Tracked $p")
 
+
+
+          if (profileId == creatorId) creatorPoints += p.amount else opponentPoints += p.amount
+
+
           val msg: JsValue = pointsWrites.writes(p)
 
           channels.foreach(_ ! msg)
+          checkPoints
         }
-        case Left(e) => log.debug(s"Unable to track $e")
+        case Left(e) => {
+          val msg: JsValue = e
+          ctxFor(profileId) ! msg
+        }
       }
     }
   }

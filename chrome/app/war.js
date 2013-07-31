@@ -19,10 +19,11 @@
             this.EVENTS.WarAccepted.on(this._onWarAccepted.bind(this));
             this.EVENTS.SYNC.on(this._onSync.bind(this))
             this.EVENTS.Points.on(this._onPoints.bind(this));
-            selfProfileId = this.DB.PROFILE().id;
+
             this.$action = this.$(".action");
             this.$points = this.$action.find(".points");
             this.$display = this.$action.find(".bottom");
+
         },
         _onSync: function (data) {
             if (!data.war)  return;
@@ -39,19 +40,23 @@
              * }
              */
 
-            var self = (data.profileId == selfProfileId);
+            var me = (data.profileId == this.me.profileId);
+
             var classTypeAdd = self ? "me" : "opponent";
             var classTypeRemove = self ? "opponent" : "me";
 
-            $("body").addClass("point " + classTypeAdd).removeClass(classTypeRemove);
 
             this.$points.text("+" + data.amount);
             this.$display.text(this.toDisplayName(data.name));
             w.clearTimeout(this.clearTimeoutId);
 
+
+            self ? this.me.add(data.amount) : this.opponent.add(data.amount);
+            $("body").addClass("point " + classTypeAdd).removeClass(classTypeRemove);
             this.clearTimeoutId = w.setTimeout(function () {
                 $("body").removeClass("point me opponent");
             }, 5 * 1000);
+
 
         },
         /**
@@ -74,19 +79,28 @@
             this.$el.show();
             this.active = true;
 
-            w.War = data.war;
+            var war = w.War = data.war;
+
+
+            this.$(".category").text(war.rules.category);
             var points = (data.points || {});
             this.me = new PlayerView({
                 el: this.$(".left.profile"),
                 player: w.app.me,
-                points: points || 0,
+                points: points.me || 0,
+                maxPoints: 10000,
                 progress: this.$(".progress.me")
             })
             this.opponent = new PlayerView({
                 el: this.$(".right.profile"),
-                player: new Player((selfProfileId == data.war.creatorId) ? data.opponent : data.creator),
-                points: points || 0,
+                player: new Player((this.me.profileId == data.creator.id) ? data.opponent : data.creator),
+                points: points.opponent || 0,
+                maxPoints: 10000,
                 progress: this.$(".progress.opponent")
+            })
+
+            this.EVENTS.FEEDBACK({
+                message: "Let the game begin!!!"
             })
 
 
@@ -135,18 +149,48 @@
         _maxValuePerBar: 0,
         username: null,
         userId: null,
-        maxPoints: 10000,
+        _maxPoints: 10000,
         player: null,
+        _points: 0,
         initialize: function (options) {
             this.player = options.player;
-            this.player.bindTo(this.$el);
-            this.$points = this.$(".points")
-            this.$bars = this.$(".points div").sort(function (a, b) {
-                a = parseInt(a.className.replace("bar", ""), 10);
-                b = parseInt(b.className.replace("bar", ""), 10);
-                return  a > b ? 1 : -1;
-            })
 
+            this.player.bindTo(this.$el);
+            this.profileId = this.player.get("id");
+            this.$points = this.$(".points")
+            this.$bars = this.$(".points div img");
+            this._totalBars = this.$bars.length;
+            this._maxPoints = options.maxPoints;
+
+            this._maxValuePerBar = Math.ceil(options.maxPoints / this._totalBars);
+            this.add(options.points);
+
+        },
+        add: function (points) {
+            this._points += points;
+            this.update(this._points)
+        },
+        update: function (points) {
+
+
+            var barValue = this._maxValuePerBar;
+            var step = 100 / barValue;
+            var $bars = this.$bars;
+            _.chain(_.range(this._totalBars))
+                .map(function () {
+                    if (points >= barValue) {
+                        points -= barValue;
+                        return barValue;
+                    } else {
+                        var value = points;
+                        points = 0;
+                        return value;
+                    }
+                }).map(function (value) {
+                    return step * value;
+                }).each(function (value, index) {
+                    $bars.eq(index).delay(index * 200).animate({height: value + "%"}, "slow");
+                })
 
         }
 

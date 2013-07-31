@@ -79,6 +79,7 @@ object Serialization {
     implicit val handleInviteReads = Json.reads[HandleInvite]
     implicit val findReads = Json.reads[Find]
     implicit val newGameReads = Json.reads[Invite]
+    implicit val ruleReads = Json.reads[Rules]
     implicit val warReads = Json.reads[War]
     implicit val warAcceptedReads = Json.reads[WarAccepted]
     implicit val challengeRequestReads = Json.reads[ChallengeRequest]
@@ -114,6 +115,8 @@ object Serialization {
       )
     )
 
+
+
     implicit val findWrites = Json.writes[Find]
     implicit val profileWrites = Json.writes[Profile]
     implicit val inviteWrites = Json.writes[Invite]
@@ -122,6 +125,8 @@ object Serialization {
     implicit val categoryWrites = new Writes[Category] {
       def writes(o: Category) = JsString(o.displayName)
     }
+
+    implicit val ruleWrites = Json.writes[Rules]
     implicit val warWrites = Json.writes[War]
 
 
@@ -189,7 +194,7 @@ object Serialization {
       def writes(o: Points[PointContext]) = Json.obj(
         "event" -> "points",
         "data" -> Json.obj(
-          "name" -> lowerCaseWithUnderscore(o.getClass.getSimpleName),
+          "name" -> lowerCaseWithUnderscore(o.context.getClass),
           "amount" -> o.amount,
           "profileId" -> o.profileId,
           "context" -> o.context.toJson
