@@ -424,6 +424,50 @@ likeus_script(chrome.extension.getURL("app/inject/ajax_hooks.js"));
  * @type {Backbone.Events}
  */
 $$.Events = _.extend({}, Backbone.Events);
+var $body = $("body");
+$$.delayMaybe = function (f) {
+    var inner = function () {
+        if (!$body.hasClass("noScroll")) {
+            return f.apply(this, arguments);
+        } else {
+            $$.addDelay({
+                func: inner,
+                scope: this,
+                args: arguments
+            })
+        }
+    }
+    return inner;
+}
+$$._delays = [];
+$$.addDelay = function (ctx) {
+    $$._delays.push(ctx);
+    $$.flush();
+
+}
+$$._flushInterval;
+$$.flush = function () {
+    clearInterval($$._flushInterval);
+    var ready = function () {
+        return !$body.hasClass("noScroll")
+    }
+    var drain = function () {
+        clearInterval($$._flushInterval);
+        var ctx = $$._delays.shift();
+        if (ctx) {
+            ctx.func.apply(ctx.scope, ctx.args);
+            setTimeout(drain, 1000);
+        }
+    }
+
+    if (ready()) {
+        drain();
+    } else {
+        $$._flushInterval = setInterval(function () {
+            if (ready())drain();
+        }, 1000);
+    }
+}
 //
 
 //http://stackoverflow.com/questions/9602022/chrome-extension-retrieving-gmails-original-message

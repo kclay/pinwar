@@ -20,12 +20,12 @@
             this.EVENTS.ChallengeRequest.on(this._onChallengeRequested.bind(this))
         },
 
-        _onFeedback: function (data) {
+        _onFeedback: $$.delayMaybe(function (data) {
             if (this._feedback(data)) {
                 $body.addClass("feedback").removeClass("error")
             }
 
-        },
+        }),
         _feedback: function (data) {
             data = data || {};
             var message = data.message;
@@ -55,12 +55,12 @@
                 return true;
             }
         },
-        _onError: function (data) {
+        _onError: $$.delayMaybe(function (data) {
             if (this._feedback(data)) {
                 $body.addClass("feedback error")
             }
 
-        },
+        }),
         acceptChallenge: function () {
 
             this._sendChallengeResponse(true);
@@ -71,7 +71,7 @@
         _sendChallengeResponse: function (accept) {
             w.clearInterval(this._countdownInterval);
             if (accept) {
-                this._feedback({
+                this.EVENTS.FEEDBACK({
                     message: "Waiting for " + this._currentChallengeRequest.profile.name + " to join",
                     autoClose: false
                 });

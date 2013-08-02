@@ -28,13 +28,14 @@
   //padding-top: 45px + @height;
 }
 
-.noScroll {
+.noScroll, .pinreset {
   #pinwar {
     display: none;
   }
   .App .headerBackground, .App .headerContainer {
     -webkit-transform: none;
     transform: none;
+    -webkit-transition: all 0ms ease-in;
   }
   .App .appendedContainer>.Module {
     top: 0px !important;
@@ -42,6 +43,7 @@
   .App.full .appContent {
     padding-top: 45px;
     -webkit-transform: none;
+    -webkit-transition: all 0ms ease-in;
     transform: none;
   }
 }
@@ -512,7 +514,7 @@
       text-align: center;
 
       padding-top: 10px;
-      padding-bottom:10px;
+      padding-bottom: 10px;
     }
     #countdown {
       font-size: 14px;

@@ -38,6 +38,7 @@ object ApplicationBuild extends Build {
 
    */
 
+
   val main = play.Project(appName, appVersion, appDependencies)
     .settings(
     requireJs ++= Seq(
@@ -48,11 +49,13 @@ object ApplicationBuild extends Build {
 
     //routesImport ++= Seq("binders._", "models._", "models.Fight.Actions._"),
     routesImport ++= Seq("models._"),
-
-    lessEntryPoints <<= baseDirectory(_ / "app" / "assets" / "stylesheets" ** "*.less"),
-    javacOptions ++= Seq("-source", "1.6", "-target", "1.6", "-encoding", "UTF-8"),
-    javacOptions in doc := Seq("-source", "1.6")
-
+    scalaVersion := "2.10.2",
+    lessEntryPoints <<= baseDirectory(_ / "app" / "assets" / "stylesheets" ** "*.less")
   )
+
+  /*javacOptions ++= Seq("-source", "1.6", "-target", "1.6", "-encoding", "UTF-8"),
+  javacOptions in doc := Seq("-source", "1.6")*
+
+  )*/
 
 }

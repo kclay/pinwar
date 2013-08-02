@@ -117,6 +117,16 @@ object Serialization {
 
 
 
+
+    implicit val powerUpWrites = new OWrites[PowerUp] {
+      def writes(o: PowerUp) = Json.obj(
+        "name" -> lowerCaseWithUnderscore(o.getClass),
+        "amount" -> o.amount,
+        "data"-> o.data
+
+      )
+    }
+
     implicit val findWrites = Json.writes[Find]
     implicit val profileWrites = Json.writes[Profile]
     implicit val inviteWrites = Json.writes[Invite]

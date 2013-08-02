@@ -13,11 +13,12 @@ object Category {
 
   lazy val special: Seq[Category] = Seq(Gifts, Videos)
   lazy val specialCreateable: Seq[Category] = Seq(ForDad)
-  lazy val all: Seq[Category] = Seq(Animals, Architecture, Art,
+  lazy val all: Seq[Category] = forBattle ++: Seq(NoCategory, Other)
+
+  lazy val forBattle: Seq[Category] = Seq(Animals, Architecture, Art,
     CarsMotorcycles, Celebrities, DiyCrafts, Design, Education, FilmMusicBooks, FoodDrink, Gardening,
     Geek, HairBeauty, HealthFitness, History, HolidaysEvents, HomeDecor, Humor, IllustrationsPosters, Kids, MensFashion,
-    Outdoors, Photography, Products, Quotes, ScienceNature, Sports, Tattoos, Technology, Travel, Weddings, WomensFashion, NoCategory, Other)
-
+    Outdoors, Photography, Products, Quotes, ScienceNature, Sports, Tattoos, Technology, Travel, Weddings, WomensFashion)
 
   def apply(n: String) = all.find(_.name == n)
 

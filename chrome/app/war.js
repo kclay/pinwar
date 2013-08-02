@@ -30,7 +30,7 @@
             this.EVENTS.WarAccepted(data.war);
 
         },
-        _onPoints: function (data) {
+        _onPoints: $$.delayMaybe(function (data) {
             /**
              * data = {
              *  profileId:String,
@@ -42,8 +42,8 @@
 
             var me = (data.profileId == this.me.profileId);
 
-            var classTypeAdd = self ? "me" : "opponent";
-            var classTypeRemove = self ? "opponent" : "me";
+            var classTypeAdd = me ? "me" : "opponent";
+            var classTypeRemove = me ? "opponent" : "me";
 
 
             this.$points.text("+" + data.amount);
@@ -51,13 +51,35 @@
             w.clearTimeout(this.clearTimeoutId);
 
 
-            self ? this.me.add(data.amount) : this.opponent.add(data.amount);
+            me ? this.me.add(data.amount) : this.opponent.add(data.amount);
+
+
+            if (me)
+                this._addPowerUps(data.context.powerUps);
+
+
             $("body").addClass("point " + classTypeAdd).removeClass(classTypeRemove);
             this.clearTimeoutId = w.setTimeout(function () {
                 $("body").removeClass("point me opponent");
             }, 5 * 1000);
 
 
+        }),
+        _addPowerUps: function (powerUps) {
+            if (!powerUps || !powerUps.length)return;
+            var up = powerUps[0]
+            var msg;
+            switch (up.name) {
+                case "description":
+                    msg = "Great Job...you just got " + up.amount + " extra points cause you added " + up.data + " to your description";
+                    break;
+
+            }
+            if (msg) {
+                this.EVENTS.FEEDBACK({
+                    message: msg
+                })
+            }
         },
         /**
          * Translates an PointContext name to its display name
@@ -72,6 +94,10 @@
                     return "Repinned";
                 case "board":
                     return "Created Board";
+                case "like":
+                    return "Liked";
+                case "comment":
+                    return "New Comment";
             }
         },
 
@@ -176,7 +202,7 @@
             var barValue = this._maxValuePerBar;
             var step = 100 / barValue;
             var $bars = this.$bars;
-            _.chain(_.range(this._totalBars))
+            return _.chain(_.range(this._totalBars))
                 .map(function () {
                     if (points >= barValue) {
                         points -= barValue;
@@ -190,6 +216,7 @@
                     return step * value;
                 }).each(function (value, index) {
                     $bars.eq(index).delay(index * 200).animate({height: value + "%"}, "slow");
+
                 })
 
         }

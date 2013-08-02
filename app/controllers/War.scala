@@ -8,7 +8,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import akka.actor._
 import battle._
-import models.Signup
+import models.{Fetch, Signup, Profile}
 import play.api.data._
 import play.api.data.Forms._
 
@@ -17,10 +17,10 @@ import utils.Mail
 import actions.WithCors
 import play.api.cache.Cache
 
+
 import scala.Some
 import com.rethinkscala.net.RethinkNoResultsError
 import play.api.libs.json.JsObject
-import models.Profile
 
 
 /**
@@ -178,7 +178,7 @@ object War extends Controller with WithCors {
 
 
 
-      var profile = (profiles get profileId run).right.toOption
+      var profile = Fetch.profile(profileId)
 
 
       master ! Connect(profileId, channel, fromInvite)

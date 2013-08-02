@@ -18,6 +18,7 @@ object Extractor {
 
 
   abstract class CanBuild[T](implicit rds: Reads[T]) {
+
     def unapply(value: JsValue): Option[T] = (value \ "event").asOpt[String] match {
       case Some(e) if (e.equals(name)) => rds.reads(value \ "data").fold(
         valid = v => Some(v),

@@ -91,34 +91,7 @@ object BattleField {
 class BattleField {
 
 
-  class CacheStore {
 
-    case class InternalCache[T](prefix: String = "", filler: String => T, private val expire: Int = 0)(implicit ct: ClassTag[T]) {
-      private def p(key: String) = s"${prefix}_${key.toString}"
-
-      def get(key: String): T = Cache.getOrElse[T](p(key)) {
-        filler(key)
-      }
-
-      def as[S](key: String)(implicit ct: ClassTag[S]) = Cache.getAs[S](key)
-
-      def set(key: String, value: T, expiration: Int = expire) = Cache.set(p(key), value, expiration)
-
-      def apply(key: String): Option[T] = as[T](key)
-
-      def apply(key: String, value: T) = set(key, value)
-
-      def -(key: String) = Cache
-
-
-    }
-
-    lazy val profiles = new InternalCache[Profile]("profile", (id => Schema.profiles.get(id).run.right.get))
-
-    lazy val invites = new InternalCache[String]("invite", (id => null), 30.minutes.toSeconds.toInt)
-
-
-  }
 
   lazy val caches = new CacheStore
   val timeoutThreshold = 5

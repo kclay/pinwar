@@ -1,4 +1,4 @@
-import models.Profile
+import models.{Fetch, Profile}
 import play.api.libs.json.Json
 import play.api.mvc.{QueryStringBindable, PathBindable}
 
@@ -33,12 +33,11 @@ package object binders {
 
   implicit def profilePathBindable(implicit stringBinder: PathBindable[String]) = new PathBindable[Profile] {
 
-    import models.Schema._
 
     def bind(key: String, value: String): Either[String, Profile] =
       for {
         id <- stringBinder.bind(key, value).right
-        profile <- profiles.get(id).run.right.toOption.toRight("No profile found").right
+        profile <- Fetch.profile(id).toRight("No profile found").right
       } yield profile
 
     def unbind(key: String, profile: Profile): String =

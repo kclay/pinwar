@@ -2,16 +2,16 @@ package models
 
 import com.rethinkscala.net.Document
 import Schema._
-import com.fasterxml.jackson.annotation.{JsonCreator, JsonIgnore, JsonTypeInfo, JsonProperty}
-import com.fasterxml.jackson.annotation.JsonTypeInfo.{As, Id}
+import com.fasterxml.jackson.annotation._
 import com.rethinkscala.ast._
 import org.joda.time.{Period, DateTime}
-import play.api.libs.json.JsValue
+import play.api.libs.json.{Json, JsObject, JsValue}
 import com.rethinkscala.Implicits._
+import play.api.Logger
+import scala.collection.mutable.ArrayBuffer
 import com.rethinkscala.ast.Var
 import scala.Some
 import com.rethinkscala.ast.Desc
-import scala.util.{Try, Failure, Success}
 
 /**
  * Created by IntelliJ IDEA.
@@ -35,7 +35,12 @@ case class Profile(id: String, username: String, name: String, email: String, av
   @JsonIgnore
   lazy val lastName = name.split(" ").drop(1).mkString(" ")
 
-  private def _rank(s: Sequence) = s.order(Desc("points")).indexesOf((v: Var) => (v \ "profileId").eq(id: Literal)).as[Int].right.toOption.map(_.headOption).flatten
+  private def _rank(s: Sequence) = s.order(Desc("points")).indexesOf((v: Var) => (v \ "profileId").eq(id: Literal)).as[Int].right.toOption.map {
+    x => {
+      Logger.info(s"Rank : $x")
+      x.headOption
+    }
+  }.flatten
 
 
   @JsonIgnore
@@ -74,8 +79,9 @@ object War {
 
 
   def create(creatorId: String, opponentId: String): Option[War] = {
-    val names = Category.all.map {
+    val names = Category.forBattle map {
       c => c.name: Datum
+
     }
 
     val q = (wars.filter {
@@ -87,7 +93,7 @@ object War {
     val category = (q.as[String] match {
       case Left(e) => None
       case Right(e) => Random.shuffle(e).headOption.map(Category(_))
-    }).flatten getOrElse Random.shuffle(Category.all).head
+    }).flatten getOrElse Random.shuffle(Category.forBattle).head
 
 
 
@@ -104,7 +110,16 @@ case class Rules(category: Category, hashtag: Option[String] = Some("#pinterestw
 case class War(id: Option[String] = None, creatorId: String, opponentId: String, rules: Rules, createdAt: DateTime = DateTime.now()) extends Document {
 
 
+  // TODO : Cache
+
+
+  def boardFor(profileId: String) = Fetch.boardByProfile(id.get, profileId)
+
+  def boardCategory(profileId: String) = Fetch.boardCategory(id.get, profileId)
+
   def category = rules.category
+
+  def hashtag = rules.hashtag
 
   def creator: Profile = ???
 
@@ -117,16 +132,19 @@ case class War(id: Option[String] = None, creatorId: String, opponentId: String,
 trait WithProfile extends Document {
   val profileId: String
 
-  def profile: Option[Profile] = profiles.get(profileId).asOpt
+  def profile: Option[Profile] = Fetch.profile(profileId)
 }
 
 
-trait WithPoints extends WithProfile {
-  val points: Int
+abstract class WithPoints extends WithProfile {
+
+
+  var points: Int
+
+
 }
 
 
-@JsonTypeInfo(use = Id.CLASS, include = As.PROPERTY, property = "className")
 abstract class PointContext extends WithPoints {
   val warId: String
 
@@ -138,47 +156,91 @@ abstract class PointContext extends WithPoints {
 
   lazy val contextType = utils.StringHelper.lowerCaseWithUnderscore(getClass)
 
-  def toJson: JsValue
+  def toJson: JsValue = asJson
+
+  protected def asJson: JsValue
+
 }
 
-case class Board(id: String, warId: String, profileId: String, name: String, category: Category, url: String, points: Int) extends PointContext {
+
+object PowerUp {
+  lazy val all = Seq(Description)
+
+
+}
+
+trait PowerUp {
+  val amount: Int
+
+  def data: String
+
+  lazy val name = utils.StringHelper.lowerCaseWithUnderscore(getClass)
+
+
+}
+
+case class Description(tag: String) extends PowerUp {
+  val amount = 50
+
+  def data = tag
+}
+
+trait PowerUpAble {
+  self: PointContext =>
+
+  import utils.Serialization.Writes.powerUpWrites
+
+  @JsonIgnore
+  val powerUps = ArrayBuffer.empty[PowerUp]
+
+  def addPowerUp(up: PowerUp) = {
+    powerUps.append(up)
+    points = points + up.amount
+  }
+
+  override def toJson = asJson.asInstanceOf[JsObject].+(("powerUps", Json.toJson(powerUps)))
+
+
+}
+
+case class Board(id: String, warId: String, profileId: String, name: String, category: Category, url: String, var points: Int) extends PointContext {
 
   import utils.Serialization.Writes.boardWrites
 
-  def toJson: JsValue = boardWrites writes this
+  protected def asJson: JsValue = boardWrites writes this
 }
 
-case class Pin(id: String, warId: String, boardId: String, profileId: String, points: Int) extends PointContext {
+case class Pin(id: String, warId: String, boardId: String, profileId: String, var points: Int) extends PointContext with PowerUpAble {
 
   import utils.Serialization.Writes.pinWrites
 
   def board = ???
 
-  def toJson = pinWrites writes this
+  protected def asJson = pinWrites writes this
 
 
 }
 
 
-case class Repin(id: String, warId: String, boardId: String, profileId: String, points: Int) extends PointContext {
+case class Repin(id: String, warId: String, boardId: String, profileId: String, var points: Int) extends PointContext with PowerUpAble {
 
   import utils.Serialization.Writes.repinWrites
 
-  def toJson = repinWrites writes this
+  protected def asJson = repinWrites writes this
 }
 
-case class Comment(id: String, warId: String, pinId: String, profileId: String, points: Int) extends PointContext {
+case class Comment(id: String, warId: String, pinId: String, profileId: String, var points: Int) extends PointContext with PowerUpAble {
 
   import utils.Serialization.Writes.commentWrites
 
-  def toJson = commentWrites writes this
+  protected def asJson = commentWrites writes this
 }
 
-case class Like(id: String, warId: String, profileId: String, points: Int) extends PointContext {
+case class Like(id: String, warId: String, profileId: String, var points: Int) extends PointContext {
 
   import utils.Serialization.Writes.likeWrites
 
-  def toJson = likeWrites writes this
+  protected def asJson = likeWrites writes this
 }
 
 case class Image(name: String, url: String, width: Int, height: Int)

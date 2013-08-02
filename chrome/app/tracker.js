@@ -59,7 +59,7 @@
 
         if (onFeedPage) {
             var parts = window.location.href.split("/")
-            return callback(parts[parts.length - 1])
+            return callback(parts[parts.length - 2])
         }
         if (onBoardPage) {
 
@@ -99,7 +99,7 @@
                 category: category
             }
         },
-        Repin: function (id, board_id, category, images) {
+        Repin: function (id, board_id, category, description, images) {
 
             /**
              * images = {
@@ -113,12 +113,13 @@
             return {
                 action: "repin",
                 id: id,
+                description: description,
                 category: category,
                 boardId: board_id,
                 images: images
             }
         },
-        Pin: function (id, board_id, images) {
+        Pin: function (id, board_id, description, images) {
 
             /**
              * images = {
@@ -132,6 +133,7 @@
             return {
                 action: "pin",
                 id: id,
+                description: description,
                 boardId: board_id,
                 images: images
             }
@@ -187,11 +189,12 @@
     }
     trackers.RepinResource = function (/** Bundle **/ bundle) {
         var resp = bundle.response;
-        var pinId = resp.resource.options.pin_id;
+        var ops = resp.resource.options;
+        var pinId = ops.pin_id;
         var data = resp.resource_response.data;
 
         resolveCategory(pinId, function (category) {
-            var action = new Actions.Repin(data.id, data.board.id, category, withImages(data));
+            var action = new Actions.Repin(data.id, data.board.id, category, ops.description, withImages(data));
 
             track(action);
 
@@ -202,9 +205,10 @@
 
     trackers.PinResource = function (/** Bundle **/ bundle) {
         var resp = bundle.response;
+        var ops = resp.resource.options;
         var data = resp.resource_response.data;
 
-        var action = new Actions.Pin(data.id, data.board.id, withImages(data));
+        var action = new Actions.Pin(data.id, data.board.id, ops.description, withImages(data));
         track(action);
 
     }
