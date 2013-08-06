@@ -25,6 +25,7 @@ import net.sf.ehcache.event.CacheEventListener
 import net.sf.ehcache.{Element, Ehcache}
 import scala.reflect.ClassTag
 import scala.util.Try
+import org.joda.time.DateTime
 
 
 /**
@@ -89,8 +90,6 @@ object BattleField {
 }
 
 class BattleField {
-
-
 
 
   lazy val caches = new CacheStore
@@ -219,6 +218,26 @@ class BattleFieldWorker(masterPath: ActorPath) extends Worker(masterPath) {
 
   val ProfileId = "profile_([0-9]+)".r
 
+
+  private def newInvite(profileId: String, email: String) = {
+    // check to see there is a pending invite already for the requesting profile
+    val token = invites.find {
+      case (k, v) => v == profileId
+    } match {
+
+      case Some((i, e)) if (email ne e) => None // check to see if the user is trying to send another an invite to another email
+      case Some((i, e)) => Some(i) // already send invite to this user
+      case _ => {
+        val token = uid
+        invites += (token ->(profileId, email))
+
+        invitesIds += profileId
+        Some(token)
+      }
+    }
+    token
+  }
+
   private def processWork(ref: ActorRef, work: Any): Unit = work match {
     case Connect(profileId, channel, fromInvite) => {
       val connection = context.system.actorOf(Props(Connection(channel)), name = s"profile_${profileId}")
@@ -309,26 +328,20 @@ class BattleFieldWorker(masterPath: ActorPath) extends Worker(masterPath) {
 
 
     }
+    case Rematch(profileId, opponentId) => {
 
+
+      val profile = profileFor(opponentId)
+      ref ! (newInvite(profileId, profile.email) map {
+        token => RematchContext(token, profile.email, profile)
+      } getOrElse new Error(s"Was unable to send out rematch challenge"))
+
+
+    }
     case Invite(profileId, email) => {
 
-      // check to see there is a pending invite already for the requesting profile
-      val token = invites.find {
-        case (k, v) => v == profileId
-      } match {
 
-        case Some((i, e)) if (email ne e) => None // check to see if the user is trying to send another an invite to another email
-        case Some((i, e)) => Some(i) // already send invite to this user
-        case _ => {
-          val token = uid
-          invites += (token ->(profileId, email))
-
-          invitesIds += profileId
-          Some(token)
-        }
-      }
-
-      ref ! token.getOrElse(Status.Failure(new Error(s"You already have an invite pending for ${email}")))
+      ref ! newInvite(profileId, email).getOrElse(Status.Failure(new Error(s"You already have an invite pending for ${email}")))
 
 
     }
@@ -366,6 +379,7 @@ class BattleFieldWorker(masterPath: ActorPath) extends Worker(masterPath) {
 
 
     }
+
 
     case wa: WarAction => {
       log info s"Passing WarAction $wa"
@@ -431,8 +445,6 @@ class WarBattle(war: War, creatorId: String, opponentId: String, creatorPath: Ac
   var opponentPoints = 0
 
 
-  def countBattle(id: String) = stats.get(id).update(s => s \ "battles" add 1) run
-
   override def preStart() {
     super.preStart()
     watch(creator)
@@ -440,8 +452,6 @@ class WarBattle(war: War, creatorId: String, opponentId: String, creatorPath: Ac
     //  activeWars += (creatorId -> war.id)
     //activeWars += (opponentId -> war.id)
 
-    countBattle(creatorId)
-    countBattle(opponentId)
     log.info(s"Started War = ${war.id}")
   }
 
@@ -450,9 +460,10 @@ class WarBattle(war: War, creatorId: String, opponentId: String, creatorPath: Ac
     val profile = caches.profiles.get(profileId)
     val msg: JsValue = DisconnectError(profile)
 
-
-    channels foreach (_ ! msg)
     self ! PoisonPill
+    channels foreach (_ ! msg)
+    war ended
+
 
   }
 
@@ -481,10 +492,14 @@ class WarBattle(war: War, creatorId: String, opponentId: String, creatorPath: Ac
 
     }
     mayWin map {
-      case (won, lose) => {
-        stats.get(won).update(s => s \ "wins" add 1) run
+      case (winnerId, lose) => {
 
-        stats.get(lose).update(s => s \ "loses" add 1) run
+        val msg = Won(winnerId)
+        channels foreach (_ ! msg)
+        unwatch(creator)
+        unwatch(opponent)
+
+        war won winnerId
       }
     }
 

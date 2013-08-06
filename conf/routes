@@ -4,6 +4,7 @@
 
 # Home page
 GET         /                                  controllers.Application.index
+GET         /stat                                  controllers.Application.stat
 #GET      /battle                                            controllers.Application.battle(username:String?="keyston")
 GET         /template/:name/tpl.html           controllers.Application.template(name:String)
 

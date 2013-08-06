@@ -1,25 +1,37 @@
-function sendMessage(bundle) {
-    chrome.tabs.query({active: true, currentWindow: true}, function (tabs) {
-        lastTabId = tabs[0].id;
-        chrome.tabs.sendMessage(lastTabId, bundle);
-    });
-}
 var ws;
-
-
-var activeWar = null;
-
 var tabs = [];
+var tabsById = {};
+
+var ctx = {
+    profile: {
+
+    },
+    settings: {},
+    war: null
+}
+
 
 function toTab(tabId, msg) {
     chrome.tabs.sendMessage(tabId, msg);
 }
-function forward(name, save) {
+
+function db(name) {
+    return JSON.parse(window.localStorage[name]).data;
+}
+function forward(name, save, callback) {
 
     var last = null;
+    if (typeof save == "function") {
+        callback = save;
+        save = false;
+    }
+    if (!callback)
+        callback = function () {
+        };
 
     function apply(e) {
         var msg = {name: name, data: e}
+        callback(e.data);
         for (var id in tabs) {
             toTab(tabs[id].id, msg);
         }
@@ -47,54 +59,128 @@ function forward(name, save) {
 }
 
 
-chrome.tabs.onCreated.addListener(function (tab) {
-    if (tab.url.indexOf("pinterest.com") != -1) {
-        tabs.push(tab);
-        if (activeWar) {
-            toTab(tab.id, {
-                name: "app:onSync",
-                data: {
-                    war: activeWar
-                }
-            })
-        }
+function wrapSound(name) {
+
+    var allow = function () {
+        return ctx.settings["game-sounds"];
     }
+
+
+    var f = function () {
+        if (!allow())return;
+        if (!f._loaded) {
+            var audio = f._audio = new Audio();
+            audio.setAttribute("src", chrome.extension.getURL("app/sounds/" + name + ".mp3"));
+            audio.load();
+            f._loaded = true;
+        }
+        f._audio.play();
+
+    }
+
+    f._loaded = false;
+
+    return function () {
+        f()
+    };
+}
+var Sound = {
+    WON: wrapSound("won"),
+    //INVITE: wrapSound("invite", true),
+    POINTS: {
+        ME: wrapSound("point_me"),
+        OPPONENT: wrapSound("point_opponent")
+    },
+    LOST: wrapSound("lost")
+}
+
+
+function tabOk(tab) {
+    var url = tab.url;
+    return url && url.indexOf("pinterest.com") != -1;
+}
+function syncTab(tabId) {
+    if (ctx.war) {
+        toTab(tabId, {
+            name: "app:onSync",
+            data: {
+                war: ctx.war
+            }
+        })
+    }
+
+}
+function addTab(tab) {
+    if (!tabsById[tab.id]) {
+        tabs.push(tab);
+
+        tabsById[tab.id] = true;
+        syncTab(tab.id);
+
+    }
+}
+function removeTab(tab) {
+    var id = typeof tab == "number" ? tab : tab.id;
+    if (tabsById[id]) {
+        tabsById[id] = null;
+        delete tabsById[id];
+        var len = tabs.length
+        var index = -1;
+        for (var i = 0; i < len; i++) {
+
+            if (tabs[i].id == id) {
+                index = i;
+                break;
+            }
+
+        }
+        if (index > -1)
+            tabs.splice(index, 1);
+    }
+}
+chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
+    var ok = tabOk(tab);
+    var added = tabsById[tab.id];
+    if (ok && !added) {
+        addTab(tab);
+    } else if (!ok) {
+        removeTab(tab);
+    }
+})
+chrome.tabs.onCreated.addListener(function (tab) {
+    if (tabOk(tab))
+        addTab(tab);
+
 
 })
 chrome.tabs.onRemoved.addListener(function (tabId) {
-    var index = -1;
-    var tbs = tabs;
-    var total = tabs.length;
-    for (var i = 0; i < total; i++) {
-        if (tabId == tabs[i].id) {
-            index = i;
-            break;
-        }
-    }
-    if (index != -1)
-        tabs.splice(index, 1);
 
-    if (!tbs.length && ws) {
+    removeTab(tabId);
+
+    if (!tabs.length && ws) {
 
         ws.close();
         ws = null;
+        tabsById = {};
+
+
     }
 });
 
 
-var selfProfileId;
 function handleOnMessage(data) {
 
+    data = JSON.parse(data);
+    var bundle = data.data;
 
     switch (data.event) {
+
         case "war_accepted":
 
-            selfProfileId = JSON.parse(window.localStorage["profile"]).data.id;
 
+            ctx.war = bundle;
 
-            activeWar = data;
-
-            activeWar.points = {
+            ctx.war.points = {
                 me: 0,
                 opponent: 0
             }
@@ -102,13 +188,24 @@ function handleOnMessage(data) {
 
             break;
 
-        case "war_action":
-            if (data.profileId == selfProfileId) {
-                activeWar.points.me += data.points;
+        case "points":
+            var me = (bundle.profileId == ctx.profile.id);
+            var amount = bundle.amount;
+
+            if (me) {
+                ctx.war.points.me += amount;
+                Sound.POINTS.ME();
             } else {
-                activeWar.points.opponent += data.points;
+                ctx.war.points.opponent += amount;
+                Sound.POINTS.OPPONENT();
             }
 
+            break;
+
+        case "won":
+            var won = (bundle.profileId == ctx.profile.id);
+            won ? Sound.WON() : Sound.LOST();
+            ctx.war = null;
             break;
 
 
@@ -131,6 +228,11 @@ chrome.runtime.onMessage.addListener(function (msg) {
             }
 
 
+            break;
+        case "ws:sync":
+            for (var i in msg.data) {
+                ctx[i] = msg.data[i];
+            }
             break;
         case "ws:send":
             ws.send(JSON.stringify(msg.data));

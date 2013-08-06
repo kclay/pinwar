@@ -16,7 +16,10 @@
         active: false,
         war: null,
         initialize: function () {
+            this.vs = this.$(".vs img").attr("src");
+            this.$stats = this.$(".left.profile .stats").clone();
             this.EVENTS.WarAccepted.on(this._onWarAccepted.bind(this));
+            this.EVENTS.Won.on(this._onWon.bind(this));
             this.EVENTS.SYNC.on(this._onSync.bind(this))
             this.EVENTS.Points.on(this._onPoints.bind(this));
 
@@ -29,6 +32,29 @@
             if (!data.war)  return;
             this.EVENTS.WarAccepted(data.war);
 
+        },
+        _onWon: function (data) {
+            /**
+             * data = {
+             * profileId:String
+             * }
+             */
+            var won = (data.profileId == this.me.profileId);
+
+            var image = this.vs.replace("vs.png", won ? "trophy.png" : "garbage.png");
+
+
+            this.$(".vs img").src(image);
+
+
+            var $right = this.$(".right.profile");
+            $right.find(".username")
+                .text(won ? "You Won" : "You Lost").end()
+                .find(won ? "Oh yeah! Oh Yeah! Oh Yeah!" : "This is no bueno.  Step it up.")
+
+            // won ? Sound.WON() : Sound.LOST();
+
+            //me ? this.me.won() : this.opponent.lose();
         },
         _onPoints: $$.delayMaybe(function (data) {
             /**
@@ -114,16 +140,19 @@
                 el: this.$(".left.profile"),
                 player: w.app.me,
                 points: points.me || 0,
-                maxPoints: 10000,
+                maxPoints: war.rules.points,
                 progress: this.$(".progress.me")
             })
             this.opponent = new PlayerView({
                 el: this.$(".right.profile"),
                 player: new Player((this.me.profileId == data.creator.id) ? data.opponent : data.creator),
                 points: points.opponent || 0,
-                maxPoints: 10000,
+                maxPoints: war.rules.points,
                 progress: this.$(".progress.opponent")
             })
+
+            // restore just in case we updated from win/lose
+            this.$(".right.profile .stats").html(this.$stats.html());
 
             this.EVENTS.FEEDBACK({
                 message: "Let the game begin!!!"
@@ -192,9 +221,16 @@
             this.add(options.points);
 
         },
+        won: function () {
+            $("body").addClass("won");
+        },
+        lost: function () {
+            $("body").addClass("lose");
+        },
         add: function (points) {
             this._points += points;
             this.update(this._points)
+            return this;
         },
         update: function (points) {
 

@@ -149,11 +149,12 @@
                 url: url
             }
         },
-        Comment: function (id, pinId, category) {
+        Comment: function (id, pinId, content, category) {
             return{
                 action: "comment",
                 id: id,
                 pinId: pinId,
+                content: content,
                 category: category
             }
         }
@@ -227,9 +228,10 @@
         var resp = bundle.response;
         var data = resp.resource_response.data;
 
-        var pinId = resp.resource.options.pin_id;
+        var opts = resp.resource.options;
+        var pinId = opts.pin_id;
         resolveCategory(pinId, function (category) {
-            var action = new Actions.Comment(data.id, pinId, category)
+            var action = new Actions.Comment(data.id, pinId, opts.text, category)
             track(action);
         })
     }

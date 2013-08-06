@@ -136,26 +136,62 @@ var Messages = {
     Error: "error",
     Countdown: "countdown",
     WarAccepted: "war_accepted",
-    Points: "points"
+    Points: "points",
+    Won: "won"
 }
 var State = {
     FINDING: "FINDING",
     IDLE: "IDLE",
     BATTLE: "BATTLE"
 }
+
+function wrapSound(name, invite) {
+
+
+    var f = function () {
+        if (!invite && !window.viewMixins.SETTINGS.GAME_SOUND())return;
+        if (!this._loaded) {
+            var audio = this._audio = new Audio();
+            audio.setAttribute("src", chrome.extension.getURL("app/sounds/" + name + ".mp3"));
+            audio.load();
+            this._loaded = true;
+        }
+        this._audio.play();
+
+    }
+    f._loaded = false;
+
+    f.__delay__ = 1;
+
+    return function () {
+        f()
+    };
+}
+var Sound = {
+    WON: wrapSound("won"),
+    //INVITE: wrapSound("invite", true),
+    POINTS: {
+        ME: wrapSound("point_me"),
+        OPPONENT: wrapSound("point_opponent")
+    },
+    LOST: wrapSound("lost")
+}
 var SETTINGS = (function () {
     var current = null;
     var flushInterval;
 
+    var f = wrapDB("settings", function (data) {
+        current = data;
+        $$.Browser.Sync({
+            settings: current
+        })
+    });
     var flush = function () {
         clearInterval(flushInterval);
         flushInterval = setTimeout(function () {
             f(current);
         }, 1);
     }
-    var f = wrapDB("settings", function (data) {
-        current = data;
-    });
 
 
     return function (name, value) {
@@ -358,6 +394,7 @@ var viewMixins = {
         CHALLENGE: wrapEvent("newChallenge"),
         SYNC: wrapEvent("sync"),
 
+
         STATE_CHANGED: wrapEvent("appStateChanged"),
         REGISTERED: wrapEvent("registered", function () {
             viewMixins.DB.REGISTERED(true);
@@ -456,7 +493,8 @@ $$.flush = function () {
         var ctx = $$._delays.shift();
         if (ctx) {
             ctx.func.apply(ctx.scope, ctx.args);
-            setTimeout(drain, 1000);
+            var delay = ($$._delays.length) ? $$._delays[0].func.__delay__ || 1000 : 1000;
+            setTimeout(drain, delay);
         }
     }
 

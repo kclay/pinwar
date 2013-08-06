@@ -241,6 +241,23 @@ object War extends Controller with WithCors {
 
 
             case Extractor.WarAction(wa) => master ! wa
+            case Extractor.Rematch(r) => master.ask(r)(Timeout(30, SECONDS)) onComplete {
+              case Success(c: RematchContext) => {
+
+
+                caches.invites(c.token, c.email)
+
+                sendInviteEmail(profile.get, c.email, c.token)
+
+
+
+
+                channel push (withFeedback(s"A Challenge request has been sent out to ${c.profile.name}"))
+              }
+              case _ => channel push withError("Unable to send a rematch request")
+
+            }
+
 
             case x: Any => play.api.Logger.error(s"Recieved malformed json ${js.toString}")
 
@@ -254,4 +271,5 @@ object War extends Controller with WithCors {
 
       (in, out &> Concurrent.buffer(100))
   }
+
 }

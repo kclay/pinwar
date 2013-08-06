@@ -8,6 +8,10 @@ var AppView = Backbone.View.extend({
     _previousState: null,
     findTimeout: 60 * 2,
 
+    events: {
+        "click #sound a": "toggleSound"
+    },
+
 
     initialize: function () {
 
@@ -62,6 +66,11 @@ var AppView = Backbone.View.extend({
     },
 
 
+    toggleSound: function () {
+
+        var current = this.SETTINGS.GAME_SOUND()
+        this.SETTINGS.GAME_SOUND(!current);
+    },
     _onStateChange: function (state) {
         //this.DB.STATE(state);
         if (this._previousState) {
@@ -78,6 +87,9 @@ var AppView = Backbone.View.extend({
 
         var profile = this.profile = $$.Browser.db("profile");
 
+        $$.Browser.Sync({
+            profile: profile
+        })
         this.me = new Player(profile);
         this.me.bindTo(this.$("#overview"));
 

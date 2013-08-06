@@ -38,11 +38,17 @@
     border: none;
     font-size: @textSmall;
 
-    &.positive {
+    &.positive, &.green {
       background: #00bf4d;
     }
-    &.negative {
+    &.negative, &.grey {
       background: #7e7e7e;
+    }
+    &.red {
+      color: @red;
+    }
+    &.orange{
+      color: @orange;
     }
   }
   input[type="button"] {

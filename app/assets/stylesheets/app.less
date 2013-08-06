@@ -299,12 +299,24 @@
   }
 
   .vs {
+
+    //background: -moz-linear-gradient(top,  #ededed 0%, #ffffff 100%);
+    //background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#ededed), color-stop(100%,#ffffff));
+    background: -webkit-linear-gradient(top, #ededed 0%, #ffffff 100%);
+    // background: -o-linear-gradient(top,  #ededed 0%,#ffffff 100%);
+    //background: -ms-linear-gradient(top,  #ededed 0%,#ffffff 100%);
+    //background: linear-gradient(to bottom,  #ededed 0%,#ffffff 100%);
+
     width: 140px;
     position: relative;
     margin: 0 auto;
 
-    height: @height - @borderHeight;
+    height: @height - @borderHeight - 2px;
     line-height: 17px;
+
+    &.won {
+
+    }
     span {
       font-size: 17px;
       vertical-align: top;
@@ -773,5 +785,19 @@ body.feedback {
       width: 100%;
     }
 
+  }
+}
+
+body.won, body.lost {
+  #pinwar {
+    #war .right.profile {
+
+      img {
+        float: left;
+      }
+      info .username {
+
+      }
+    }
   }
 }

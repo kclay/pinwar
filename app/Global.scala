@@ -12,7 +12,7 @@ object Global extends GlobalSettings {
 
   override def onStart(app: Application) {
     super.onStart(app)
-    import models.Schema._
-    models.Schema.setup
+    //import models.Schema._
+    //models.Schema.setup
   }
 }

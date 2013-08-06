@@ -42,12 +42,13 @@ object Extractor {
   case object ChallengeResponse extends CanBuild[ChallengeResponse]
 
 
-
   case object ChallengeRequest extends CanBuild[ChallengeRequest]
 
   case object WarAccepted extends CanBuild[WarAccepted]
 
   case object Countdown extends CanBuild[Countdown]
+
+  case object Rematch extends CanBuild[Rematch]
 
 }
 
@@ -66,7 +67,7 @@ case class NewWar(profileId: String, opponentId: String)
 
 case class Disconnect(profileId: String)
 
-case class Connect(profileId: String, channel: Channel[JsValue],fromInvite:Boolean)
+case class Connect(profileId: String, channel: Channel[JsValue], fromInvite: Boolean)
 
 case class Find(profileId: String) extends Event
 
@@ -82,6 +83,12 @@ case class WarAccepted(creator: Profile, opponent: Profile, war: War) extends Ev
 case class ChallengeRequest(token: String, profile: Profile) extends Event
 
 case class ChallengeResponse(profileId: String, token: String, accepted: Boolean, creatorId: String) extends Event
+
+case class Won(profileId: String)
+
+case class Rematch(profileId: String, opponentId: String) extends Event
+
+case class RematchContext(token: String, email: String, profile: Profile)
 
 
 case class Countdown(passed: Int) extends Event

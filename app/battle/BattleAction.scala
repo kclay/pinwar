@@ -66,7 +66,6 @@ abstract class CanTrack[T <: PointContext](implicit m: Manifest[T]) extends Batt
 
         point.save match {
           case Right(b) => if (b.inserted == 1) {
-            stats.get(profileId).update(s => (s \ "points") add record.points) run
 
 
             Right(Points[T](profileId, record.points, record))
@@ -184,12 +183,12 @@ object CreateRepin {
 
 trait DescriptionPowerUp extends CanPowerUp {
   self: TrackContext {type ContextType <: PowerUpAble} =>
-  val description: String
+  def descriptionForPowerUp: String
 
   override protected def checkForPowerUp(war: War, context: ContextType) = {
     super.checkForPowerUp(war, context)
     war.hashtag.map {
-      ht => if (description.contains(ht)) context.addPowerUp(Description(ht))
+      ht => if (descriptionForPowerUp.contains(ht)) context.addPowerUp(Description(ht))
     }
   }
 }
@@ -218,7 +217,7 @@ case class CreateRepin(id: String, boardId: String, category: Category, descript
     b => "Sorry! No points were awarded. You have to repin items in the \"%s\" category" format war.category.displayName
   } getOrElse "Sorry! No points were awarded. You have to create a board in \"%s\" category first" format war.category.displayName
 
-
+  def descriptionForPowerUp = description
 }
 
 object CreatePin {
@@ -246,13 +245,15 @@ case class CreatePin(id: String, boardId: String, description: String, images: S
   def canTrackError(war: War, profileId: String) = war.boardFor(profileId) map {
     b => "Sorry! No points were awarded. You have to pin items to \"%s\" board" format b.name
   } getOrElse "Sorry! No points were awarded. You have to create a board in \"%s\" category first" format war.category.displayName
+
+  def descriptionForPowerUp = description
 }
 
 object CreateComment {
   val action = "comment"
 }
 
-case class CreateComment(id: String, pinId: String, category: Category) extends CanTrack[Comment] {
+case class CreateComment(id: String, pinId: String, content: String, category: Category) extends CanTrack[Comment] with DescriptionPowerUp {
 
 
   protected def factory(war: War, profileId: String) = Comment(id, war.id, pinId, profileId, points)
@@ -264,6 +265,7 @@ case class CreateComment(id: String, pinId: String, category: Category) extends 
 
   def canTrack(w: War, profileId: String) = w.category == category
 
+  def descriptionForPowerUp = content
 }
 
 object CreateLike {
@@ -290,6 +292,6 @@ case class Confirm(profileId: String) extends BattleAction {
   protected def factory(war: War, profileId: String) = ???
 }
 
-case class Points[T](profileId: String, amount: Int, @JsonTypeInfo(use = Id.CLASS, include = As.PROPERTY, property = "className") context: T)
+case class Points[T <: PointContext](profileId: String, amount: Int, @JsonTypeInfo(use = Id.CLASS, include = As.PROPERTY, property = "className") context: T)
 
 case class Track(war: War)

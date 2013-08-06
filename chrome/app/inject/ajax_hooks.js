@@ -36,6 +36,7 @@ function init_ajax_hooks() {
         var toWatch = [
             "BoardResource/create",
             // /FeedResource/,
+            "PinCommentResource/create",
             "PinResource/create",
             "PinLikeResource/create",
             "RepinResource/create"

@@ -32,7 +32,7 @@
                 "app/signup.js", "app/feedback.js", "app/overview.js", "app/war.js", "app/app.js" ]
         }
     ],
-    "web_accessible_resources": ["app/inject/support.js", "app/inject/ajax_hooks.js"]
+    "web_accessible_resources": ["app/inject/support.js", "app/inject/ajax_hooks.js", "app/sounds/*.mp3"]
 
 
 }

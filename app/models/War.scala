@@ -35,7 +35,7 @@ case class Profile(id: String, username: String, name: String, email: String, av
   @JsonIgnore
   lazy val lastName = name.split(" ").drop(1).mkString(" ")
 
-  private def _rank(s: Sequence) = s.order(Desc("points")).indexesOf((v: Var) => (v \ "profileId").eq(id: Literal)).as[Int].right.toOption.map {
+  private def _rank(s: Sequence) = s.order("points" desc).indexesOf((v: Var) => (v \ "profileId").eq(id: Literal)).as[Int].right.toOption.map {
     x => {
       Logger.info(s"Rank : $x")
       x.headOption
@@ -48,10 +48,10 @@ case class Profile(id: String, username: String, name: String, email: String, av
   @JsonIgnore
   lazy val stats = Schema.stats.get(id).run.fold(_ => Stats(id), x => x)
 
-  /*
+
   override protected def afterInsert {
     Schema.stats.insert(Stats(id)).run
-  } */
+  }
 
 
   def rankBy(from: DateTime, to: DateTime) = _rank(Schema.stats.filter((v: Var) => ((v \ "createdAt") >= from.getMillis) and ((v \ "createdAt") <= to.getMillis)))
@@ -64,6 +64,10 @@ case class Point(id: Option[String] = None, profileId: String, warId: String, co
 
   def contextAs[T](implicit mf: Manifest[T]) = if (mf.runtimeClass isAssignableFrom (context.getClass)) Some(context.asInstanceOf[T]) else None
 
+
+  override protected def afterInsert(id: String) {
+    stats.get(profileId).update(s => (s \ "points") add context.points) run
+  }
 
 }
 
@@ -105,9 +109,10 @@ object War {
 }
 
 
-case class Rules(category: Category, hashtag: Option[String] = Some("#pinterestwars"))
+case class Rules(category: Category, points: Int = 10000, hashtag: Option[String] = Some("#pinterestwars"))
 
-case class War(id: Option[String] = None, creatorId: String, opponentId: String, rules: Rules, createdAt: DateTime = DateTime.now()) extends Document {
+case class War(id: Option[String] = None, creatorId: String, opponentId: String, rules: Rules, createdAt: DateTime = DateTime.now(),
+               endedAt: Option[DateTime] = None, winnerId: Option[String] = None) extends Document {
 
 
   // TODO : Cache
@@ -124,6 +129,23 @@ case class War(id: Option[String] = None, creatorId: String, opponentId: String,
   def creator: Profile = ???
 
   def opponent: Profile = ???
+
+  def ended = copy(endedAt = Some(DateTime.now())).save
+
+
+  override protected def afterInsert(id: String) {
+    stats.get(creatorId).update(s => s \ "battles" add 1) run
+
+    stats.get(opponentId).update(s => s \ "battles" add 1) run
+  }
+
+  def won(id: String) = {
+    copy(endedAt = Some(DateTime.now()), winnerId = Some(id)) save
+
+    stats.get(id).update(s => s \ "wins" add 1) run
+
+    stats.get(if (id == creatorId) opponentId else creatorId).update(s => s \ "loses" add 1) run
+  }
 
 
 }

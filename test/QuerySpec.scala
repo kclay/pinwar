@@ -24,42 +24,45 @@ class QuerySpec extends Specification {
   "lala " should {
 
     "work" in new WithServer {
-      private val host = configuration.getString("rethink.default.url", None)
-      private val version = Version1(host.getOrElse("localhost"))
-      implicit val connection = Connection(version)
 
+      import models.Schema._
 
-      val profiles = r.table[Profile]("testing_profiles")
+      // private val host = configuration.getString("rethink.default.url", None)
+      //private val version = Version1(host.getOrElse("localhost"))
+      //implicit val connection = Connection(version)
 
-      profiles.insert(Profile("a", "", "", "", ""))
-      val wars = r.table[War]("testing_wars")
-      wars.create.run
-
-      val cats = Category.all
-
-
-      w.right.get.returnedValue[War]
-
-      val creatorId = "a"
-      val opponentId = "b"
-      val names = cats.map {
-        c => c.name: Datum
-      }
-      val q = (wars.filter {
-        v => v \ "creatorId" === creatorId or v \ "opponentId" === creatorId or v \ "creatorId" === opponentId or v \ "opponentId" === opponentId
-      } filter {
-        v => v \ "createdAt" >= 1
-      }) \ "category" idiff (names: _*)
-
-
-      val ast = q ast
-
-
-      q.as[String] match {
+      profiles.run match {
         case Left(e) => println(e)
+        case Right(r) => stats.insert(r.map {
+          p => Stats(p.id)
+        }).run match {
+          case Left(e) => println(e)
+          case Right(r) => println(r)
+        }
 
-        case Right(r) => println(r)
       }
+
+      /*
+       val creatorId = "a"
+       val opponentId = "b"
+       val names = cats.map {
+         c => c.name: Datum
+       }
+       val q = (wars.filter {
+         v => v \ "creatorId" === creatorId or v \ "opponentId" === creatorId or v \ "creatorId" === opponentId or v \ "opponentId" === opponentId
+       } filter {
+         v => v \ "createdAt" >= 1
+       }) \ "category" idiff (names: _*)
+
+
+       val ast = q ast
+
+
+       q.as[String] match {
+         case Left(e) => println(e)
+
+         case Right(r) => println(r)
+       }    */
     }
 
   }

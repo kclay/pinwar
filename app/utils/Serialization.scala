@@ -116,13 +116,11 @@ object Serialization {
     )
 
 
-
-
     implicit val powerUpWrites = new OWrites[PowerUp] {
       def writes(o: PowerUp) = Json.obj(
         "name" -> lowerCaseWithUnderscore(o.getClass),
         "amount" -> o.amount,
-        "data"-> o.data
+        "data" -> o.data
 
       )
     }
@@ -200,6 +198,7 @@ object Serialization {
       obj
     }
 
+    implicit val wonWrites = Json.writes[Won]
     implicit val pointsWrites = new Writes[Points[PointContext]] {
       def writes(o: Points[PointContext]) = Json.obj(
         "event" -> "points",

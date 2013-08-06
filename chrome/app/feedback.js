@@ -1,13 +1,24 @@
 (function ($$, w, d) {
 
     var $body = $("body");
+    var closeAfter = function (f) {
+        var rtn = f();
+
+
+        return rtn;
+    }
     var FeedbackView = Backbone.View.extend({
 
         _currentChallengeRequest: null,
         challengeTimeout: 30,
         events: {
             "click #accept": "acceptChallenge",
-            "click #decline": "declineChallenge"
+            "click #decline": "declineChallenge",
+
+            "click #rematch": "rematch",
+            "click #invite": "invite",
+            "click #random": "find",
+            "click #leaderboard": "showLeaderBoard"
         },
 
         initialize: function () {
@@ -20,6 +31,31 @@
             this.EVENTS.ChallengeRequest.on(this._onChallengeRequested.bind(this))
         },
 
+
+        rematch: function () {
+          this.ws()
+        },
+        find: function () {
+
+        },
+        showLeaderBoard: function () {
+
+        },
+
+        find: function () {
+
+            app.warView.$el.hide();
+            app.overviewView.$el.show();
+
+            app.overviewView.find();
+            return false;
+        },
+        invite: function () {
+            app.warView.$el.hide();
+            app.overviewView.$el.show();
+            this._feedback(null);
+            return false;
+        },
         _onFeedback: $$.delayMaybe(function (data) {
             if (this._feedback(data)) {
                 $body.addClass("feedback").removeClass("error")

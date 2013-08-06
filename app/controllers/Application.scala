@@ -4,9 +4,11 @@ import play.api._
 import play.api.mvc._
 import play.api.templates.Html
 import play.api.data.Forms._
-import models.Profile
+import models.{Stats, Category, War, Profile}
 import play.api.data._
 import actions.WithCors
+import com.rethinkscala.r
+import models.Schema._
 
 
 object Application extends Controller with WithCors {
@@ -15,6 +17,22 @@ object Application extends Controller with WithCors {
     Ok(views.html.index("Your new application is ready."))
   }
 
+  def stat = Action {
+
+    profiles.run match {
+      case Left(e) => println(e)
+      case Right(r) => stats.insert(r.map {
+        p => Stats(p.id)
+      }).run match {
+        case Left(e) => println(e)
+        case Right(r) => println(r)
+      }
+
+    }
+
+
+    Ok("ok")
+  }
 
   def template(name: String) = AllowCors {
     implicit request =>

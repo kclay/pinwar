@@ -21,7 +21,7 @@ var $$ = {};
                 ws.onclose(msg.data);
                 break;
             case "app:onSync":
-                $$.EVENTS.SYNC(msg.data);
+                viewMixins.EVENTS.SYNC(msg.data);
                 break;
         }
     });
@@ -76,6 +76,7 @@ var $$ = {};
                 close: function () {
                     //ws.close();
                 },
+
                 event: function (event, data) {
                     data.profileId = profileId;
                     this.send({
@@ -131,6 +132,12 @@ var $$ = {};
 
         },
 
+        Sync: function (data) {
+            send({
+                name: "ws:sync",
+                data: data
+            })
+        },
         /**
          *
          * @param key
