@@ -48,14 +48,20 @@
 
 
             var $right = this.$(".right.profile");
-            $right.find(".username")
-                .text(won ? "You Won" : "You Lost").end()
-                .find(won ? "Oh yeah! Oh Yeah! Oh Yeah!" : "This is no bueno.  Step it up.")
+            var gif = $$.path(["assets/images/", won ? "won" : "lose", _.random(1, 10), ".gif"].join(""));
+            $right.find("#end-game")
+                .find(".label").text(won ? "You Won" : "You Lost").end()
+                .find(".message").text(won ? "Oh yeah! Oh Yeah! Oh Yeah!" : "This is no bueno.  Step it up.").end()
+                .find(".details").text().end().end()
+                .find(".avatar").src(gif).end()
 
+
+            won ? Sound.WON() : Sound.LOST();
             // won ? Sound.WON() : Sound.LOST();
 
             //me ? this.me.won() : this.opponent.lose();
         },
+
         _onPoints: $$.delayMaybe(function (data) {
             /**
              * data = {
@@ -77,7 +83,7 @@
             w.clearTimeout(this.clearTimeoutId);
 
 
-            me ? this.me.add(data.amount) : this.opponent.add(data.amount);
+            me ? this.me.add(data.amount) && Sound.POINTS.ME() : this.opponent.add(data.amount) && Sound.POINTS.OPPONENT();
 
 
             if (me)
@@ -150,9 +156,10 @@
                 maxPoints: war.rules.points,
                 progress: this.$(".progress.opponent")
             })
-
+            // restore vs logo in case we updated from win/lose
+            this.$(".vs img").attr("src", this.vs);
             // restore just in case we updated from win/lose
-            this.$(".right.profile .stats").html(this.$stats.html());
+
 
             this.EVENTS.FEEDBACK({
                 message: "Let the game begin!!!"
@@ -210,12 +217,14 @@
         initialize: function (options) {
             this.player = options.player;
 
+            this.$stats = this.$(".stats span");
             this.player.bindTo(this.$el);
             this.profileId = this.player.get("id");
             this.$points = this.$(".points")
             this.$bars = this.$(".points div img");
             this._totalBars = this.$bars.length;
             this._maxPoints = options.maxPoints;
+
 
             this._maxValuePerBar = Math.ceil(options.maxPoints / this._totalBars);
             this.add(options.points);
@@ -228,8 +237,26 @@
             $("body").addClass("lose");
         },
         add: function (points) {
-            this._points += points;
+
+            clearInterval(this._interval);
+            var before = this._points;
+            var after = this._points += points;
+
+
+            var diff = after - before;
+
+            if (!diff)return this;
+            var step = Math.ceil(500 / diff);
+            this._interval = setInterval(function () {
+
+                before += step;
+                this.$stats.text("" + before);
+                if (before >= after) {
+                    clearInterval(this._interval);
+                }
+            }.bind(this), 1);
             this.update(this._points)
+
             return this;
         },
         update: function (points) {

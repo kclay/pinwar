@@ -107,7 +107,7 @@ abstract class Worker(masterLocation: ActorPath)
   import MasterWorkerProtocol._
 
   // We need to know where the master is
-  val master = context.actorFor(masterLocation)
+  val master = context.actorSelection(masterLocation)
 
   // This is how our derivations will interact with us.  It
   // allows dervations to complete work asynchronously
@@ -137,7 +137,12 @@ abstract class Worker(masterLocation: ActorPath)
       master ! WorkerRequestsWork(self)
       // We're idle now
       context.become(idle)
+
+    case Terminated(actor) => actorTerminated(actor)
   }
+
+
+  def actorTerminated(actor: ActorRef) = {}
 
   // In this state we have no work to do.  There really are only
   // two messages that make sense while we're in this state, and
@@ -155,6 +160,7 @@ abstract class Worker(masterLocation: ActorPath)
     // We asked for it, but either someone else got it first, or
     // there's literally no work to be done
     case NoWorkToBeDone =>
+    case Terminated(actor) => actorTerminated(actor)
   }
 
   def receive = idle

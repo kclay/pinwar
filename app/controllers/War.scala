@@ -46,16 +46,6 @@ object War extends Controller with WithCors {
   lazy val caches = scope.caches
 
 
-  def fix(r: Result) = r.withHeaders(
-    "Access-Control-Allow-Origin" -> "*",
-    "Access-Control-Allow-Methods" -> "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers" -> "Content-Type, X-Requested-With, Accept",
-    // cache access control response for one day
-    "Access-Control-Max-Age" -> (60 * 60 * 24).toString
-
-  )
-
-
   case class Foo(a: String)
 
   val profileForm = Form(
@@ -265,7 +255,7 @@ object War extends Controller with WithCors {
           }
 
 
-      } mapDone {
+      } map {
         _ => master ! Disconnect(profileId)
       }
 

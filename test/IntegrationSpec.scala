@@ -28,7 +28,7 @@ class IntegrationSpec extends Specification {
     }
     
   }   **/
-
+ /*
   "Battle" should {
 
     import battle.Extractor._
@@ -70,7 +70,7 @@ class IntegrationSpec extends Specification {
         case _ => false
       }) must beTrue
     }
-  }
+  }     */
 
 
 }

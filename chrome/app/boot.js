@@ -149,14 +149,9 @@ function wrapSound(name, invite) {
 
 
     var f = function () {
+        if (invite && !window.viewMixins.SETTINGS.CHALLENGE_SOUND()) return;
         if (!invite && !window.viewMixins.SETTINGS.GAME_SOUND())return;
-        if (!this._loaded) {
-            var audio = this._audio = new Audio();
-            audio.setAttribute("src", chrome.extension.getURL("app/sounds/" + name + ".mp3"));
-            audio.load();
-            this._loaded = true;
-        }
-        this._audio.play();
+        $$.Browser.Sound(name);
 
     }
     f._loaded = false;
@@ -169,7 +164,7 @@ function wrapSound(name, invite) {
 }
 var Sound = {
     WON: wrapSound("won"),
-    //INVITE: wrapSound("invite", true),
+    CHALLENGE: wrapSound("challenge", true),
     POINTS: {
         ME: wrapSound("point_me"),
         OPPONENT: wrapSound("point_opponent")
@@ -369,7 +364,7 @@ var viewMixins = {
 
         }),
         GAME_SOUND: wrapSetting("game-sounds", true),
-        INVITE_SOUND: wrapSetting("invitation-sound", true),
+        CHALLENGE_SOUND: wrapSetting("challenge-sound", true),
         INVITE_EMAILS: wrapSetting("invite-emails", function () {
 
         }),

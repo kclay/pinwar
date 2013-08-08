@@ -33,7 +33,7 @@
 
 
         rematch: function () {
-          this.ws()
+            this.ws()
         },
         find: function () {
 
@@ -128,6 +128,7 @@
                 message: feedback,
                 autoClose: false
             })
+            Sound.CHALLENGE();
             var timeout = this.challengeTimeout;
             var $countdown = this.$("#countdown");
             var interval = this._countdownInterval = w.setInterval(function () {

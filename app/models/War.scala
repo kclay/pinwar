@@ -202,7 +202,7 @@ trait PowerUp {
 }
 
 case class Description(tag: String) extends PowerUp {
-  val amount = 50
+  val amount = 100
 
   def data = tag
 }

@@ -32,6 +32,7 @@ class Trench(ctx: BattleField) extends mutable.HashMap[String, ChannelContext] w
   private def withBlock(profileId: String, block: Boolean): Unit = get(profileId) map {
     c => {
 
+      val pending = if (block) c.pending else false
       this += (profileId -> c.copy(blacklisted = block match {
         case true if (c.blacklisted.isDefined) => c.blacklisted
         case true => Some(ctx.system.scheduler.scheduleOnce(2 minutes) {
@@ -40,7 +41,7 @@ class Trench(ctx: BattleField) extends mutable.HashMap[String, ChannelContext] w
         }(ctx.system.dispatcher))
         case false if (c.blacklisted.isDefined) => c.blacklisted.get.cancel(); None
         case false => None
-      }))
+      }, pending = pending))
 
     }
 
@@ -60,6 +61,8 @@ class TrenchSub(ctx: BattleField) extends mutable.Subscriber[Message[(String, Ch
   private val logger = Logger(getClass)
   type Sub = (String, ChannelContext)
 
+  import scala.concurrent.future
+
 
   //Use the system's dispatcher as ExecutionContext
 
@@ -67,7 +70,7 @@ class TrenchSub(ctx: BattleField) extends mutable.Subscriber[Message[(String, Ch
 
   def inviting(m: {val elem: Sub}) = ctx.invitesIds.contains(m.elem._1)
 
-  def notify(pub: Trench, event: Message[Sub] with mutable.Undoable) {
+  def notify(pub: Trench, event: Message[Sub] with mutable.Undoable): Unit = future({
     // TODO : This should take the common boards that each player has and pick the correct users to play against for the first pass
     // the second pass will check if we have a board theme for the common board, if not its a freeplay
     (event match {
@@ -99,7 +102,7 @@ class TrenchSub(ctx: BattleField) extends mutable.Subscriber[Message[(String, Ch
       }
       case _ =>
     }
-  }
+  })(scala.concurrent.ExecutionContext.Implicits.global)
 
 
 }

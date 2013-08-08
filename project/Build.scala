@@ -4,6 +4,7 @@ import sbt.Keys._
 import play.Project._
 import sbt.File
 
+import com.typesafe.sbt.SbtAtmos.{ Atmos, atmosSettings }
 object ApplicationBuild extends Build {
 
   val appName = "server"
@@ -17,14 +18,20 @@ object ApplicationBuild extends Build {
       "local"))(Resolver.ivyStylePatterns)
   )
 
+  val akkaVersion = "2.2.0"
+
+
   val appDependencies = Seq(
     // Add your project dependencies here,
-    jdbc,
+    cache,
     //"org.squeryl" %% "squeryl" % "0.9.5-6",
     //"mysql" % "mysql-connector-java" % "5.1.10",
     //"com.h2database" % "h2" % "1.2.127",
     "com.rethinkscala" %% "core" % "0.4-SNAPSHOT",
     "com.typesafe" %% "play-plugins-mailer" % "2.1.0",
+    "com.typesafe.akka" %% "akka-remote" % akkaVersion,
+    "com.typesafe.akka" %% "akka-contrib" % akkaVersion,
+
     "com.fasterxml.jackson.datatype" % "jackson-datatype-joda" % "2.1.1"
 
   )
@@ -41,9 +48,6 @@ object ApplicationBuild extends Build {
 
   val main = play.Project(appName, appVersion, appDependencies)
     .settings(
-    requireJs ++= Seq(
-      "battle/main.js"
-    ),
     routesImport += "binders._",
     resolvers ++= appResolvers,
 
@@ -51,7 +55,8 @@ object ApplicationBuild extends Build {
     routesImport ++= Seq("models._"),
     scalaVersion := "2.10.2",
     lessEntryPoints <<= baseDirectory(_ / "app" / "assets" / "stylesheets" ** "*.less")
-  )
+  ).configs(Atmos)
+    .settings(atmosSettings: _*)
 
   /*javacOptions ++= Seq("-source", "1.6", "-target", "1.6", "-encoding", "UTF-8"),
   javacOptions in doc := Seq("-source", "1.6")*

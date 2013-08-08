@@ -25,6 +25,10 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
 
   implicit val system = ctx.system
 
+  private val alreadySeen = collection.mutable.ArrayBuffer.empty[String]
+
+  def seen(profileId: String) = alreadySeen.contains(profileId)
+
   implicit val exec: ExecutionContext = ctx.system.dispatcher
 
   private val p = promise[War]
@@ -73,8 +77,10 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
   def request(opponentId: String) = ctx.trench.get(opponentId) map {
     c => {
 
+      ctx.trench :=+ opponentId
       // TODO Send email
       c ! (ChallengeRequest(ctx.challengeTokenFor(this), profile): JsValue)
+
     }
   }
 
@@ -107,8 +113,21 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
       p.completeWith(ctx.master.ask(NewWar(creatorId, opponentId))(Timeout(20 seconds)).mapTo[War])
 
     } else {
-      ctx.trench :=- opponentId // make opponent not in pending state
-      ctx.pendingFinders += this // re add to queue
+      alreadySeen += opponentId
+
+      val profileId = profile.id
+      ctx.trench.collectFirst {
+        case (p, c) if (p != profileId && c.available && !alreadySeen.contains(p)) => p
+      } match {
+        case Some(opponentId) => {
+
+          request(opponentId)
+        }
+        case _ => ctx.pendingFinders += this // re add to queue
+      }
+      ctx.trench block opponentId // make opponent not in pending state
+
+
     }
   }
 

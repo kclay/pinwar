@@ -28,7 +28,9 @@ object Serialization {
 
     implicit val categoryRead = new Reads[Category] {
       def reads(json: JsValue) = json.asOpt[String] match {
-        case Some(name) => Category.all.filter(_.name == name).headOption.map(JsSuccess[Category](_)).getOrElse(JsError())
+        case Some(name) => Category.all.filter {
+          c => c.name == name || c.displayName == name
+        }.headOption.map(JsSuccess[Category](_)).getOrElse(JsError())
         case _ => JsError()
       }
     }
@@ -50,6 +52,8 @@ object Serialization {
 
     implicit val rePinedReads = Json.reads[CreateRepin]
     implicit val confirmReads = Json.reads[Confirm]
+
+    implicit val rematchReads = Json.reads[Rematch]
 
 
     implicit val battleActionReads: Reads[BattleAction] = new Reads[BattleAction] {

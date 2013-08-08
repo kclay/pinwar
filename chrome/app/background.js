@@ -10,6 +10,10 @@ var ctx = {
     war: null
 }
 
+function log() {
+    console.log.apply(console, arguments);
+}
+
 
 function toTab(tabId, msg) {
     chrome.tabs.sendMessage(tabId, msg);
@@ -61,13 +65,9 @@ function forward(name, save, callback) {
 
 function wrapSound(name) {
 
-    var allow = function () {
-        return ctx.settings["game-sounds"];
-    }
-
 
     var f = function () {
-        if (!allow())return;
+
         if (!f._loaded) {
             var audio = f._audio = new Audio();
             audio.setAttribute("src", chrome.extension.getURL("app/sounds/" + name + ".mp3"));
@@ -84,14 +84,16 @@ function wrapSound(name) {
         f()
     };
 }
+
 var Sound = {
-    WON: wrapSound("won"),
+    won: wrapSound("won"),
     //INVITE: wrapSound("invite", true),
-    POINTS: {
-        ME: wrapSound("point_me"),
-        OPPONENT: wrapSound("point_opponent")
-    },
-    LOST: wrapSound("lost")
+    point_me: wrapSound("point_me"),
+    challenge: wrapSound("challenge"),
+
+    point_opponent: wrapSound("point_opponent"),
+
+    lost: wrapSound("lost")
 }
 
 
@@ -116,6 +118,7 @@ function addTab(tab) {
 
         tabsById[tab.id] = true;
         syncTab(tab.id);
+        log("addTab", tab);
 
     }
 }
@@ -134,8 +137,10 @@ function removeTab(tab) {
             }
 
         }
-        if (index > -1)
+        if (index > -1) {
             tabs.splice(index, 1);
+            log("Removing Tab at ", index, tabs);
+        }
     }
 }
 chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
@@ -157,6 +162,7 @@ chrome.tabs.onRemoved.addListener(function (tabId) {
 
     removeTab(tabId);
 
+    log("onRemoved  tabs ", tabs)
     if (!tabs.length && ws) {
 
         ws.close();
@@ -194,17 +200,17 @@ function handleOnMessage(data) {
 
             if (me) {
                 ctx.war.points.me += amount;
-                Sound.POINTS.ME();
+
             } else {
                 ctx.war.points.opponent += amount;
-                Sound.POINTS.OPPONENT();
+
             }
 
             break;
 
         case "won":
             var won = (bundle.profileId == ctx.profile.id);
-            won ? Sound.WON() : Sound.LOST();
+
             ctx.war = null;
             break;
 
@@ -213,6 +219,7 @@ function handleOnMessage(data) {
 }
 var debug = true;
 chrome.runtime.onMessage.addListener(function (msg) {
+    log("onMessage ", msg);
     switch (msg.name) {
         case "ws:connect":
 
@@ -228,6 +235,11 @@ chrome.runtime.onMessage.addListener(function (msg) {
             }
 
 
+            break;
+        case "ws:sound":
+            var f = Sound[msg.data];
+            log("Sound ", msg.data, f);
+            if (f)f();
             break;
         case "ws:sync":
             for (var i in msg.data) {

@@ -3,17 +3,15 @@ package controllers
 import play.api._
 import play.api.mvc._
 import play.api.templates.Html
-import play.api.data.Forms._
-import models.{Stats, Category, War, Profile}
-import play.api.data._
+import models.Stats
 import actions.WithCors
-import com.rethinkscala.r
 import models.Schema._
 
 
 object Application extends Controller with WithCors {
 
   def index = Action {
+    Logger.debug("Testing")
     Ok(views.html.index("Your new application is ready."))
   }
 

@@ -20,7 +20,7 @@ class QuerySpec extends Specification {
   import models._
   import com.rethinkscala.r
 
-
+  /*
   "lala " should {
 
     "work" in new WithServer {
@@ -42,28 +42,8 @@ class QuerySpec extends Specification {
 
       }
 
-      /*
-       val creatorId = "a"
-       val opponentId = "b"
-       val names = cats.map {
-         c => c.name: Datum
-       }
-       val q = (wars.filter {
-         v => v \ "creatorId" === creatorId or v \ "opponentId" === creatorId or v \ "creatorId" === opponentId or v \ "opponentId" === opponentId
-       } filter {
-         v => v \ "createdAt" >= 1
-       }) \ "category" idiff (names: _*)
 
-
-       val ast = q ast
-
-
-       q.as[String] match {
-         case Left(e) => println(e)
-
-         case Right(r) => println(r)
-       }    */
     }
 
-  }
+  }   */
 }

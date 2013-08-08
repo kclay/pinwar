@@ -132,6 +132,12 @@ var $$ = {};
 
         },
 
+        Sound: function (name) {
+            send({
+                name: "ws:sound",
+                data: name
+            })
+        },
         Sync: function (data) {
             send({
                 name: "ws:sync",

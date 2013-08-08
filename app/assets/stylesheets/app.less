@@ -314,9 +314,6 @@
     height: @height - @borderHeight - 2px;
     line-height: 17px;
 
-    &.won {
-
-    }
     span {
       font-size: 17px;
       vertical-align: top;
@@ -489,7 +486,7 @@
       overflow: hidden;
 
       width: @profileWidth;
-      .username {
+      .username, .label {
         width: @profileWidth - @profileImageMargin - @profileImageWidth;
         text-overflow: ellipsis;
         overflow: hidden;
@@ -788,16 +785,43 @@ body.feedback {
   }
 }
 
+#end-game {
+  display: none;
+}
+
 body.won, body.lost {
   #pinwar {
     #war .right.profile {
 
+      .username, .stats, .points {
+        display: none;
+      }
       img {
         float: left;
       }
-      info .username {
 
+      #end-game {
+        text-align: center;
+        width: 276px;
+        display: block;
+        .message {
+          font-size: 18px;
+          color: #333333;
+          .font-bold;
+        }
+        .details {
+
+          position: relative;
+          padding: 5px !important;
+        }
       }
+      .info .label {
+        color: @green;
+        font-size: 36px;
+      }
+    }
+    #sound {
+      display: none;
     }
   }
 }

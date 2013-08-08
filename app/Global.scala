@@ -11,6 +11,9 @@ object Global extends GlobalSettings {
 
 
   override def onStart(app: Application) {
+
+    val loader = app.classloader
+
     super.onStart(app)
     //import models.Schema._
     //models.Schema.setup

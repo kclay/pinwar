@@ -39,7 +39,7 @@ object Fetch {
    def profile(id: String) = Option(C.getOrElse[Profile](s"profile_opt_$id", 0) {
      profiles.get(id).run fold(e => null, p => p)
    })*/
-  def profile(id: String) = profiles.get(id).run fold(e => None, Some(_))
+  def profile(id: String): Option[Profile] = profiles.get(id).toOpt
 
 
   lazy val store = new CacheStore

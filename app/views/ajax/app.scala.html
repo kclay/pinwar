@@ -58,8 +58,8 @@
             </tr>
             <tr class="last">
                 <td class="l ">
-                    <span>Invitation Sound Effects</span>
-                    @radio("invitation-sound")
+                    <span>Challenge Sound Effect</span>
+                    @radio("challenge-sound")
                 </td>
                 <td class="r ">
                     <input type="button" id="save-settings" value="Update Settings" class=""/>
@@ -116,6 +116,7 @@
                     Ray Hernandez
                 </div>
                 <div class="stats">
+                    @*********************
                     <img src="@asset("images/icon-wins.png")"/>
                     Wins
                     <span class="wins">0</span>
@@ -123,12 +124,26 @@
                     <img src="@asset("images/icon-loses.png")"/>
                     Loses
                     <span class="loses">0</span>
+                    *********************@
+                     Points : <span>0</span>
 
 
                 </div>
                 <div class="points">
                 @bars(10)
                 </div>
+                @if(side == "right") {
+
+                    <div id="end-game">
+                        <div class="bold label">
+                            Ray Hernandez
+                        </div>
+                        <div class="message"></div>
+                        <div class="details">
+
+                        </div>
+                    </div>
+                }
             </div>
         </div>
 
