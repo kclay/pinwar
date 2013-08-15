@@ -4,6 +4,7 @@ import scala.collection.mutable
 import scala.collection.script.{Remove, Update, Include, Message}
 import play.api.libs.json.JsValue
 import play.api.Logger
+import akka.actor.ActorSystem
 
 /**
  * Created by IntelliJ IDEA.
@@ -13,12 +14,15 @@ import play.api.Logger
  */
 
 
+trait TrenchContext {
+
+  val system: ActorSystem
+}
+
 class Trench(ctx: BattleField) extends mutable.HashMap[String, ChannelContext] with mutable.ObservableMap[String, ChannelContext] {
   type Pub = Trench
 
   private val log = Logger(getClass)
-
-  import scala.concurrent.duration._
 
 
   def :=+(profileId: String) = context(profileId, true)
@@ -35,7 +39,7 @@ class Trench(ctx: BattleField) extends mutable.HashMap[String, ChannelContext] w
       val pending = if (block) c.pending else false
       this += (profileId -> c.copy(blacklisted = block match {
         case true if (c.blacklisted.isDefined) => c.blacklisted
-        case true => Some(ctx.system.scheduler.scheduleOnce(2 minutes) {
+        case true => Some(ctx.system.scheduler.scheduleOnce(ctx.blacklistTimeout) {
           log.debug(s"Unblocking $profileId")
           unblock(profileId)
         }(ctx.system.dispatcher))
@@ -52,6 +56,38 @@ class Trench(ctx: BattleField) extends mutable.HashMap[String, ChannelContext] w
   def context(profileId: String, pending: Boolean) = get(profileId) map {
     c => this += (profileId -> c.copy(pending = pending))
 
+
+  }
+}
+
+
+trait FinderStrategy {
+
+  type Apply = PartialFunction[(String, ChannelContext), Unit]
+
+  def apply(trench: Trench): Apply
+}
+
+case class DefaultFindStrategy(ctx: BattleField) extends FinderStrategy {
+  private val logger = Logger(getClass)
+
+  def apply(trench: Trench): Apply = {
+    case (opponentId: String, _: ChannelContext) =>
+      ctx.pendingFinders.headOption map {
+        finder => {
+
+          logger.info("Found a pending users, removing from queue and resolving Finder")
+          ctx.pendingFinders.remove(0)
+          ctx.finders += finder
+          // update opponent state
+          trench :=+ opponentId
+          finder request opponentId
+
+        }
+      } orElse {
+        logger.info("No pending users waiting")
+        None
+      }
 
   }
 }
@@ -78,30 +114,8 @@ class TrenchSub(ctx: BattleField) extends mutable.Subscriber[Message[(String, Ch
       case u: Update[Sub] if (!u.pending && u.blacklisted.isEmpty && !inviting(u)) => Some(u.elem)
       case r: Remove[Sub] => r.destroy; None
       case _ => None
-    }) map {
+    }) map ctx.findStrategy(pub)
 
-      case (opponentId: String, _: ChannelContext) => {
-
-        ctx.pendingFinders.headOption map {
-          finder => {
-
-            logger.info("Found a pending users, removing from queue and resolving Finder")
-            ctx.pendingFinders.remove(0)
-            ctx.finders += finder
-            // update opponent state
-            pub :=+ opponentId
-            finder request opponentId
-
-          }
-        } orElse {
-          logger.info("No pending users waiting")
-          None
-        }
-
-
-      }
-      case _ =>
-    }
   })(scala.concurrent.ExecutionContext.Implicits.global)
 
 

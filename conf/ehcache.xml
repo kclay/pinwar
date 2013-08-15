@@ -7,7 +7,7 @@
             timeToLiveSeconds="120"
             overflowToDisk="false"
             maxElementsOnDisk="10000000"
-            diskPersistent="true"
+            diskPersistent="false"
             diskExpiryThreadIntervalSeconds="120"
             memoryStoreEvictionPolicy="LRU"
             />

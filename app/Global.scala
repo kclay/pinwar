@@ -1,4 +1,5 @@
-import com.rethinkscala.net.{Version1, Connection}
+
+import com.rethinkscala.CurrentSchema
 import play.api.{Application, GlobalSettings}
 
 /**
@@ -11,6 +12,9 @@ object Global extends GlobalSettings {
 
 
   override def onStart(app: Application) {
+
+    CurrentSchema(None)
+
 
     val loader = app.classloader
 

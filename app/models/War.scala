@@ -11,7 +11,8 @@ import play.api.Logger
 import scala.collection.mutable.ArrayBuffer
 import com.rethinkscala.ast.Var
 import scala.Some
-import com.rethinkscala.ast.Desc
+import com.rethinkscala.r
+import battle.BattleConfig
 
 /**
  * Created by IntelliJ IDEA.
@@ -20,13 +21,6 @@ import com.rethinkscala.ast.Desc
  * Time: 3:58 PM 
  */
 
-
-case class RankFilter()
-
-
-object Profile {
-
-}
 
 case class Profile(id: String, username: String, name: String, email: String, avatar: String) extends Document {
 
@@ -40,21 +34,25 @@ case class Profile(id: String, username: String, name: String, email: String, av
       Logger.info(s"Rank : $x")
       x.headOption
     }
-  }.flatten
+  }.flatten getOrElse (0)
 
 
   @JsonIgnore
-  lazy val rank = _rank(Schema.stats)
+  lazy val rank = _rank(Schema[Stats])
+
   @JsonIgnore
-  lazy val stats = Schema.stats.get(id).run.fold(_ => Stats(id), x => x)
+  lazy val stats = Schema[Stats].get(id).run.fold(_ => Stats(id), x => x)
 
 
   override protected def afterInsert {
-    Schema.stats.insert(Stats(id)).run
+    Schema[Stats].insert(Stats(id)).run
+
   }
 
 
-  def rankBy(from: DateTime, to: DateTime) = _rank(Schema.stats.filter((v: Var) => ((v \ "createdAt") >= from.getMillis) and ((v \ "createdAt") <= to.getMillis)))
+  def rankBy(from: DateTime, to: DateTime) = {
+    _rank(Schema[Stats].filter((v: Var) => ((v \ "createdAt") >= from.getMillis) and ((v \ "createdAt") <= to.getMillis)))
+  }
 
 }
 
@@ -66,7 +64,9 @@ case class Point(id: Option[String] = None, profileId: String, warId: String, co
 
 
   override protected def afterInsert(id: String) {
-    stats.get(profileId).update(s => (s \ "points") add context.points) run
+    Schema[Stats].get(profileId).update(s => Map("points" -> (s \ "points").add(context.points))) run
+
+
   }
 
 }
@@ -88,7 +88,7 @@ object War {
 
     }
 
-    val q = (wars.filter {
+    val q = (Schema[War].filter {
       v => v \ "creatorId" === creatorId or v \ "opponentId" === creatorId or v \ "creatorId" === opponentId or v \ "opponentId" === opponentId
     } filter {
       v => v \ "createdAt" >= DateTime.now().minus(Period.hours(2)).getMillis
@@ -101,7 +101,7 @@ object War {
 
 
 
-    War(None, creatorId, opponentId, Rules(category)) save match {
+    War(None, creatorId, opponentId, Rules(points = BattleConfig.pointsToWin(10000), category = FoodDrink)) save match {
       case Left(e) => None
       case Right(r) => r.returnedValue[War]
     }
@@ -134,17 +134,27 @@ case class War(id: Option[String] = None, creatorId: String, opponentId: String,
 
 
   override protected def afterInsert(id: String) {
-    stats.get(creatorId).update(s => s \ "battles" add 1) run
 
-    stats.get(opponentId).update(s => s \ "battles" add 1) run
+    Schema[Stats].filter(s => (s \ "id" === creatorId) or s \ "id" === opponentId).update(Map("battles" -> r.row("battles").add(1))) run
+
+
   }
 
   def won(id: String) = {
-    copy(endedAt = Some(DateTime.now()), winnerId = Some(id)) save
+    val stats = Schema[Stats]
 
-    stats.get(id).update(s => s \ "wins" add 1) run
+    copy(endedAt = Some(DateTime.now()), winnerId = Some(id)) replace
 
-    stats.get(if (id == creatorId) opponentId else creatorId).update(s => s \ "loses" add 1) run
+    stats.filter(s => s \ "id" === creatorId or s \ "id" === opponentId).update(
+      r.branch(r.row("id") === id,
+        Map("wins" -> r.row("wins").add(1)),
+        Map("loses" -> r.row("loses").add(1))
+      )) run
+    // stats.get(id).update(s => Map("wins" -> (s \ "wins").add(1))) run
+
+    // stats.get(if (id == creatorId) opponentId else creatorId).update(s => Map("loses" -> (s \ "loses").add(1))) run
+
+
   }
 
 
@@ -171,7 +181,7 @@ abstract class PointContext extends WithPoints {
   val warId: String
 
   @JsonIgnore
-  lazy val war = wars.get(warId).run match {
+  lazy val war = Schema[War].get(warId).run match {
     case Left(e) => None
     case Right(w) => Some(w)
   }
@@ -211,6 +221,10 @@ trait PowerUpAble {
   self: PointContext =>
 
   import utils.Serialization.Writes.powerUpWrites
+
+  // so import wont be remoevd
+  private val pw = powerUpWrites
+
 
   @JsonIgnore
   val powerUps = ArrayBuffer.empty[PowerUp]

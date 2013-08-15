@@ -73,7 +73,7 @@ case class Find(profileId: String) extends Event
 
 case class NewAccount(profile: Profile, token: Option[String] = None)
 
-case class HandleInvite(profileId: String, creatorId: String, token: String, accept: Boolean, profile: Profile) extends Event
+case class HandleInvite(profileId: String, token: String, accept: Boolean, profile: Profile) extends Event
 
 
 case class WarAction(profileId: String, war: String, action: BattleAction) extends Event
@@ -84,7 +84,7 @@ case class ChallengeRequest(token: String, profile: Profile) extends Event
 
 case class ChallengeResponse(profileId: String, token: String, accepted: Boolean, creatorId: String) extends Event
 
-case class Won(profileId: String)
+case class Won(profileId: String) extends Event
 
 case class Rematch(profileId: String, opponentId: String) extends Event
 

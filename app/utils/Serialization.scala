@@ -130,7 +130,17 @@ object Serialization {
     }
 
     implicit val findWrites = Json.writes[Find]
-    implicit val profileWrites = Json.writes[Profile]
+    implicit val profileWrites = new OWrites[Profile] {
+
+      def writes(o: Profile) = Json.obj(
+        "id" -> o.id,
+        "username" -> o.username,
+        "name" -> o.name,
+        "email" -> "xxxxxxx",
+        "avatar" -> o.avatar
+      )
+
+    }
     implicit val inviteWrites = Json.writes[Invite]
     implicit val rankingWrites = Json.writes[Stats]
 
@@ -203,6 +213,8 @@ object Serialization {
     }
 
     implicit val wonWrites = Json.writes[Won]
+
+
     implicit val pointsWrites = new Writes[Points[PointContext]] {
       def writes(o: Points[PointContext]) = Json.obj(
         "event" -> "points",

@@ -18,9 +18,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 class WarBattle(war: War, creatorId: String, opponentId: String, creatorPath: ActorPath, opponentPath: ActorPath) extends Actor with ActorLogging {
 
 
-  import utils.Serialization.Writes.{pointsWrites, throwable2Json, appError2Json}
+  import utils.Serialization.Writes.{pointsWrites, throwable2Json, appError2Json, wonWrites, warAcceptedWrites, event2JsValue}
 
-  import com.rethinkscala.Implicits._
 
   import BattleField.instance.caches
 
@@ -29,7 +28,7 @@ class WarBattle(war: War, creatorId: String, opponentId: String, creatorPath: Ac
   val opponent = context.system.actorSelection(opponentPath)
   val channels = Seq(creator, opponent)
 
-  val pointsNeededToWin = BattleConfig.pointsNeededToWin
+  val pointsNeededToWin = war.rules.points
   var creatorPoints = 0
   var opponentPoints = 0
 
@@ -81,7 +80,7 @@ class WarBattle(war: War, creatorId: String, opponentId: String, creatorPath: Ac
     mayWin map {
       case (winnerId, lose) => {
         ended.set(true)
-        val msg = Won(winnerId)
+        val msg: JsValue = Won(winnerId)
         channels foreach (_ ! msg)
 
 
@@ -104,6 +103,12 @@ class WarBattle(war: War, creatorId: String, opponentId: String, creatorPath: Ac
         context.become(active)
         log.info("Becomming active")
       }
+      val profiles = Seq(creatorId, opponentId)
+      val msg: JsValue = profiles.map(caches.profiles get _) match {
+        case Seq(c, o) => WarAccepted(c, o, war)
+      }
+      channels foreach (_ ! msg)
+
       activate.set(true)
 
 

@@ -135,14 +135,16 @@ case class CreateBoard(id: String, name: String, description: String, category: 
     val errorCategory = !categoryOk(war)
     val errorDescription = !descriptionOk(war)
     val errorBoard = war.boardFor(profileId).isDefined
-    if (errorBoard)
+    if (errorBoard) {
       b append "You already created a board for this battle."
-    else
-    if (errorCategory)
-      b append "The board must be in the \"%s\" category".format(war.category)
-    if (errorDescription) {
-      if (errorCategory) b append " and "
-      b append "You must have the hashtag \"%s\" in your board description".format(war.rules.hashtag)
+    } else {
+      if (errorCategory)
+        b append "The board must be in the \"%s\" category".format(war.category)
+      if (errorDescription) {
+        if (errorCategory) b append " and "
+        b append "You must have the hashtag \"%s\" in your board description".format(war.rules.hashtag.get)
+      }
+      b append ".Delete board and try again"
     }
 
     b toString()
@@ -213,9 +215,13 @@ case class CreateRepin(id: String, boardId: String, category: Category, descript
     b => b.id == boardId && b.category == category
   } getOrElse false
 
-  def canTrackError(war: War, profileId: String) = war.boardFor(profileId) map {
-    b => "Sorry! No points were awarded. You have to repin items in the \"%s\" category" format war.category.displayName
-  } getOrElse "Sorry! No points were awarded. You have to create a board in \"%s\" category first" format war.category.displayName
+  def canTrackError(war: War, profileId: String) = (war.boardFor(profileId) map {
+    b => category match {
+      case NoCategory => "This Re-Pin has NO CATEGORY. Please re-pin items in the \"%s\" category"
+      case _ => "Sorry! No points were awarded. You have to re-pin items in the \"%s\" category"
+
+    }
+  } getOrElse "Sorry! No points were awarded. You have to create a board in \"%s\" category first") format war.category.displayName
 
   def descriptionForPowerUp = description
 }
@@ -261,7 +267,10 @@ case class CreateComment(id: String, pinId: String, content: String, category: C
 
   def read(value: JsValue) = value.asOpt[CreateComment]
 
-  def canTrackError(war: War, profileId: String) = "Sorry! No points were awarded. You have to comment on a item in the \"%s\" category" format war.category
+  def canTrackError(war: War, profileId: String) = (category match {
+    case NoCategory => "This Pin has NO CATEGORY. Please comment on items in the \"%s\" category"
+    case _ => "Sorry! No points were awarded. You have to comment on a item in the \"%s\" category"
+  }) format war.category.displayName
 
   def canTrack(w: War, profileId: String) = w.category == category
 
@@ -277,7 +286,10 @@ case class CreateLike(id: String, category: Category) extends CanTrack[Like] {
 
   def read(value: JsValue) = value.asOpt[CreateLike]
 
-  def canTrackError(war: War, profileId: String) = "Sorry! No points were awarded. You have to like a item in the \"%s\" category" format war.category
+  def canTrackError(war: War, profileId: String) = (category match {
+    case NoCategory => "This Like has NO CATEGORY. Please like items in the \"%s\" category"
+    case _ => "Sorry! No points were awarded. You have to like a item in the \"%s\" category"
+  }) format war.category.displayName
 
   def canTrack(w: War, profileId: String) = w.category == category
 }

@@ -42,8 +42,12 @@
                     <input type="text" id="email" value="ray.hernandez@@gmail.com"/>
                 </td>
                 <td class="r">
+                    @*
                     <span>Invite Emails</span>
                     @radio("invite-emails")
+                    *@
+                    <span>Weekly Emails</span>
+                    @radio("weekly-emails")
                 </td>
             </tr>
             <tr>
@@ -52,18 +56,15 @@
                     @radio("game-sounds")
                 </td>
                 <td class="r">
-                    <span>Weekly Emails</span>
-                    @radio("weekly-emails")
-                </td>
-            </tr>
-            <tr class="last">
-                <td class="l ">
                     <span>Challenge Sound Effect</span>
                     @radio("challenge-sound")
                 </td>
-                <td class="r ">
+            </tr>
+            <tr class="last">
+                <td colspan="2">
                     <input type="button" id="save-settings" value="Update Settings" class=""/>
                 </td>
+
             </tr>
         </table>
     </div>
@@ -125,7 +126,7 @@
                     Loses
                     <span class="loses">0</span>
                     *********************@
-                     Points : <span>0</span>
+                        Points : <span>0</span>
 
 
                 </div>
@@ -149,7 +150,7 @@
 
     }
 <link rel="stylesheet" media="screen" href="@routes.Assets.at("stylesheets/app.css").absoluteURL()">
-<div id="pinwar" style="opacity:0;">
+<div id="pinwar" style="opacity : 0 ;">
     <a href="#" id="icon-settings" class="hidden">Settings</a>
     <div id="wrapper">
 
@@ -186,9 +187,7 @@
                     </div>
                 </div>
             </div>
-            <div id="current-pins" class="details">
-                1,385,039 Pins
-            </div>
+
 
         </div>
 

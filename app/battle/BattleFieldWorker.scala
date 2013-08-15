@@ -20,10 +20,10 @@ import scala.util.Try
  * Date: 8/7/13
  * Time: 7:09 PM 
  */
-class BattleFieldWorker(masterPath: ActorPath) extends Worker(masterPath) {
+class BattleFieldWorker(ctx: BattleField, masterPath: ActorPath) extends Worker(masterPath) {
 
-  import BattleField.{caches, instance}
-  import instance._
+  import ctx._
+
   import utils.Serialization.Writes.throwable2Json
 
 
@@ -65,12 +65,14 @@ class BattleFieldWorker(masterPath: ActorPath) extends Worker(masterPath) {
 
   private def newInvite(profileId: String, email: String) = {
     // check to see there is a pending invite already for the requesting profile
-    val token = invites.find {
-      case (k, v) => v == profileId
-    } match {
+    val previous = invites.find {
+      case (k, (creatorId, _)) => creatorId == profileId
+    }
 
-      case Some((i, e)) if (email ne e) => None // check to see if the user is trying to send another an invite to another email
-      case Some((i, e)) => Some(i) // already send invite to this user
+    previous match {
+
+      case Some((token, (_, e))) if (email ne e) => None // check to see if the user is trying to send another an invite to another email
+      case Some((token, _)) => Some(token) // already send invite to this user
       case _ => {
         val token = uid
         invites += (token ->(profileId, email))
@@ -79,14 +81,14 @@ class BattleFieldWorker(masterPath: ActorPath) extends Worker(masterPath) {
         Some(token)
       }
     }
-    token
+
   }
 
   private def processWork(ref: ActorRef, work: Any): Unit = work match {
     case Connect(profileId, channel, fromInvite) => {
       val connection = context.system.actorOf(Props(Connection(channel)), name = s"profile_${profileId}")
       context.watch(connection)
-      trench += (profileId -> ChannelContext(connection.path, pending = fromInvite))
+      trench += (profileId -> new ChannelContext(connection.path, pending = fromInvite))
     }
 
     case Terminated(actor) => {
@@ -139,11 +141,11 @@ class BattleFieldWorker(masterPath: ActorPath) extends Worker(masterPath) {
 
       }
     }
-    case HandleInvite(opponentId, creatorId, token, accept, profile) => {
+    case HandleInvite(opponentId, token, accept, profile) => {
 
 
       invites.remove(token) match {
-        case Some((creatorId, email)) => {
+        case Some((creatorId, _)) => {
           if (accept) {
             // update status to pending
             trench :=+ creatorId
@@ -162,7 +164,7 @@ class BattleFieldWorker(masterPath: ActorPath) extends Worker(masterPath) {
         case _ => {
           // creator is offline
 
-          push(opponentId, new Error(s"${profileFor(creatorId).name} is offline now"))
+          push(opponentId, new Error(s"Your opponent is offline now"))
         }
       }
 
@@ -232,25 +234,25 @@ class BattleFieldWorker(masterPath: ActorPath) extends Worker(masterPath) {
 
     case d@Disconnect(profileId) => {
       trench.remove(profileId) map {
-        c => {
+        cc => {
           log.info(s"Sending PoisonPill to $profileId")
-          c ! PoisonPill
+          cc ! PoisonPill
           invitesIds -= profileId
 
           Seq(finders, pendingFinders).map {
-            c => c.find(_.creatorId == profileId).map {
+            collection => collection.find(_.creatorId == profileId).map {
               f => {
                 log info s"Destorying finder for $profileId"
                 f.destroy
-                val index = c.indexOf(f)
-                if (index != -1)
-                  c.remove(index)
+
               }
             }
           }
 
           challengeTokens retain ((t, f) => f.creatorId != profileId)
-          invites.retain((k, v) => v != profileId)
+          invites.retain {
+            case (k, (creatorId, _)) => creatorId != profileId
+          }
         }
 
       }

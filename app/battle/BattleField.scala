@@ -41,9 +41,13 @@ case class ChannelContext(actorPath: ActorPath, pending: Boolean = false, blackl
 }
 
 object BattleConfig {
-  lazy val pointsNeededToWin = play.api.Play.configuration(play.api.Play.current).getInt("points.toWin").get
+  private lazy val pointsNeededToWin = play.api.Play.configuration(play.api.Play.current).getInt("points.toWin")
+
+  def pointsToWin(orElse: Int) = pointsNeededToWin getOrElse (orElse)
+
 
 }
+
 
 object BattleField {
 
@@ -61,7 +65,9 @@ object BattleField {
       cache.getCacheEventNotificationService.registerListener(new CacheEventListener() {
         def notifyElementRemoved(p1: Ehcache, p2: Element) {}
 
-        def notifyElementPut(p1: Ehcache, p2: Element) {}
+        def notifyElementPut(p1: Ehcache, p2: Element) {
+          println(p2.getObjectValue)
+        }
 
         def notifyElementUpdated(p1: Ehcache, p2: Element) {}
 
@@ -84,6 +90,7 @@ object BattleField {
 
 }
 
+
 class BattleField {
 
 
@@ -99,6 +106,8 @@ class BattleField {
 
   type ProfileId = String
   type Email = String
+
+  val blacklistTimeout: FiniteDuration = 2 minutes
 
   val invites = mutable.Map.empty[String, (ProfileId, Email)]
   val invitesIds = ArrayBuffer.empty[String]
@@ -141,16 +150,15 @@ class BattleField {
   def battleRef(id: String) = system.actorSelection(actorPath(s"war_$id"))
 
   def worker(name: String) = system.actorOf(Props(
-    new BattleFieldWorker(actorPath("battle_field"))), name = name)
+    new BattleFieldWorker(this, actorPath("battle_field"))), name = name)
 
-  private val numOfWorkers = 1
+  private val numOfWorkers = 2
   lazy val master = {
     val _master = system.actorOf(Props[Master], name = "battle_field")
-    (0 to numOfWorkers).foreach(x => worker(s"worker_${x + 1}"))
+    (1 to numOfWorkers).foreach(x => worker(s"worker_${x }"))
     _master
   }
-
-
+  val findStrategy = DefaultFindStrategy(this)
 }
 
 

@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.module.SimpleModule
 
 import com.fasterxml.jackson.databind.{DeserializationContext, JsonDeserializer}
 import com.fasterxml.jackson.core.JsonParser
+import com.rethinkscala.ast.Table
+import com.rethinkscala.CurrentSchema
 
 
 /**
@@ -24,18 +26,27 @@ private class PinWarModule extends SimpleModule("PinWarModule") {
       Category(jp.getText) getOrElse (Unknown)
     }
   }
- /*
-  class PowerUpDeserializer extends JsonDeserializer[PowerUp] {
-    def deserialize(jp: JsonParser, ctxt: DeserializationContext) = {
-      PowerUp(jp.getText)
-    }
-  }   */
+
+  /*
+   class PowerUpDeserializer extends JsonDeserializer[PowerUp] {
+     def deserialize(jp: JsonParser, ctxt: DeserializationContext) = {
+       PowerUp(jp.getText)
+     }
+   }   */
 
   addDeserializer(classOf[Category], new CategoryDeserializer)
-//  addDeserializer(classOf[PowerUp], new PowerUpDeserializer)
+  //  addDeserializer(classOf[PowerUp], new PowerUpDeserializer)
 }
 
-object Schema extends com.rethinkscala.Schema {
+
+object Schema extends Schema("test") {
+
+
+  def apply[T <: com.rethinkscala.net.Document](implicit mf: Manifest[T]): Table[T] = CurrentSchema.getOrElse(thisSchema).get[T].get
+}
+
+
+class Schema(dbName: String) extends com.rethinkscala.Schema {
 
   import play.api.Play.current
   import play.api.Play.configuration
@@ -45,18 +56,19 @@ object Schema extends com.rethinkscala.Schema {
   private val version = Version1(host.getOrElse("localhost"), maxConnections = 20)
   implicit val connection = Connection(version)
 
-  val profiles = table[Profile]("profiles")
 
-  val wars = table[War]("wars")
-  val signups = table[Signup]("signups")
-  val points = table[Point]("points")
-  val stats = table[Stats]
+  val profiles = table[Profile]("profiles", db = Some(dbName))
 
-  val boards = table[Board]("boards")
+  val wars = table[War]("wars", db = Some(dbName))
+  val signups = table[Signup]("signups", db = Some(dbName))
+  val points = table[Point]("points", db = Some(dbName))
+  val stats = table[Stats]("stats", db = Some(dbName))
+
+  val boards = table[Board]("boards", db = Some(dbName))
   val likes = table[Like]("likes")
-  val repins = table[Repin]("repins")
-  val pins = table[Pin]("pins")
-  val comments = table[Comment]("comments")
+  val repins = table[Repin]("repins", db = Some(dbName))
+  val pins = table[Pin]("pins", db = Some(dbName))
+  val comments = table[Comment]("comments", db = Some(dbName))
 
 
   override protected def defineMapper = {

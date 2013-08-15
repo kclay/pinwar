@@ -151,5 +151,5 @@ case object WomensFashion extends Category {
 case object Unknown extends Category
 
 case object NoCategory extends Category {
-  override lazy val name = "none"
+  override lazy val name = "None"
 }

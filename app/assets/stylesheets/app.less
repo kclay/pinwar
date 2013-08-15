@@ -740,8 +740,11 @@ body.feedback {
       background: #00bf4d;
       font-size: 22px;
       font-weight: bold;
+
+      width: 50%;
     }
     .last td {
+      text-align: center;
       margin-top: 30px;
     }
     #email {
@@ -790,8 +793,14 @@ body.feedback {
 }
 
 body.won, body.lost {
-  #pinwar {
-    #war .right.profile {
+  #pinwar #war {
+
+    .vs {
+      .title, .category, .action {
+        visibility: hidden;
+      }
+    }
+    .right.profile {
 
       .username, .stats, .points {
         display: none;
@@ -824,4 +833,5 @@ body.won, body.lost {
       display: none;
     }
   }
+
 }

@@ -1,0 +1,6 @@
+
+Warning: include(E:\DEV\_FreeLance\Likeus.co\application\pinwar/includes/ChannelConnectService.php): failed to open stream: No such file or directory in E:\DEV\_FreeLance\Likeus.co\application\pinwar\synxis_test.php on line 8
+
+Warning: include(): Failed opening 'E:\DEV\_FreeLance\Likeus.co\application\pinwar/includes/ChannelConnectService.php' for inclusion (include_path='.;C:\php\pear') in E:\DEV\_FreeLance\Likeus.co\application\pinwar\synxis_test.php on line 8
+
+Fatal error: Class 'HtngHeader1' not found in E:\DEV\_FreeLance\Likeus.co\application\pinwar\synxis_test.php on line 10

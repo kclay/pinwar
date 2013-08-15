@@ -4,7 +4,8 @@ import sbt.Keys._
 import play.Project._
 import sbt.File
 
-import com.typesafe.sbt.SbtAtmos.{ Atmos, atmosSettings }
+import com.typesafe.sbt.SbtAtmos.{Atmos, atmosSettings}
+
 object ApplicationBuild extends Build {
 
   val appName = "server"
@@ -13,6 +14,7 @@ object ApplicationBuild extends Build {
 
   val appResolvers = Seq(
     "Typesafe Repository2" at "http://typesafe.artifactoryonline.com/typesafe/",
+    "Keyston Repository" at "http://kclay.github.io/releases",
     Resolver.file("LocalIvy", file(Path.userHome +
       File.separator + ".ivy2" + File.separator +
       "local"))(Resolver.ivyStylePatterns)
@@ -27,10 +29,11 @@ object ApplicationBuild extends Build {
     //"org.squeryl" %% "squeryl" % "0.9.5-6",
     //"mysql" % "mysql-connector-java" % "5.1.10",
     //"com.h2database" % "h2" % "1.2.127",
-    "com.rethinkscala" %% "core" % "0.4-SNAPSHOT",
+    "com.rethinkscala" %% "core" % "0.4.3-SNAPSHOT",
     "com.typesafe" %% "play-plugins-mailer" % "2.1.0",
     "com.typesafe.akka" %% "akka-remote" % akkaVersion,
     "com.typesafe.akka" %% "akka-contrib" % akkaVersion,
+    "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
 
     "com.fasterxml.jackson.datatype" % "jackson-datatype-joda" % "2.1.1"
 

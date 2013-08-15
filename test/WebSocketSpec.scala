@@ -1,16 +1,13 @@
-import akka.util.Timeout
 import java.net.URI
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import models.Profile
-import org.specs2.execute.AsResult
 import org.specs2.mutable._
 
 
 import utils.WebSocketClient
 import play.api.test._
-import play.api.test.Helpers._
+
 import scala.concurrent._
-import scala.concurrent.duration._
 import battle._
 import utils.WebSocketClient.Messages.Connected
 import utils.WebSocketClient.Messages.TextMessage
@@ -21,7 +18,7 @@ import utils.WebSocketClient.Messages.TextMessage
  * Date: 7/12/13
  * Time: 8:16 PM 
  */
-class WarSpec extends Specification {
+class WebSocketSpec extends Specification with Helpers {
 
 
   import models.Schema._
@@ -32,24 +29,8 @@ class WarSpec extends Specification {
   // sequential
   // forces all tests to be run sequentially
 
-  def block(timeout: Long) = {
-    val p = promise[Boolean]
-    try {
-      Helpers.await(p.future)(Timeout(timeout, SECONDS))
-    } catch {
-      case e: TimeoutException =>
-    }
-  }
 
-  abstract class WithWs extends WithServer {
-    override def around[T](t: => T)(implicit evidence$2: AsResult[T]) = {
-
-      super.around(t)(evidence$2)
-    }
-  }
-
-
-  val port = testServerPort
+  lazy val port = play.api.test.Helpers.testServerPort
 
   def setupProfiles = {
     val me = Profile("me", "foo", "foo", "foo@test.com", "")
@@ -68,7 +49,7 @@ class WarSpec extends Specification {
   "war controller" should {
 
 
-    "find second opponent with accept" in new WithWs {
+    "find second opponent with accept" in new WithServer {
 
       val count = new AtomicInteger()
 
@@ -136,9 +117,9 @@ class WarSpec extends Specification {
 
     }
 
-    /*
 
-    "find opponent with accept" in new WithWs {
+    /*
+    "find opponent with accept" in new WithServer {
 
       val (me, op, op2) = setupProfiles
       val p = promise[Boolean]
@@ -200,7 +181,7 @@ class WarSpec extends Specification {
 
       Helpers.await(p.future)(Timeout(90, SECONDS)) must beTrue
 
-    }   */
+    }    */
 
 
   }

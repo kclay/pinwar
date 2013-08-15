@@ -39,27 +39,34 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
 
 
   def destroy = {
-
+    cleanup
     countdown.cancel()
     handle.cancel()
+
   }
 
   private val channel = ctx.trench.get(creatorId).get
   var passed = 0
   private val countdown = ctx.system.scheduler.schedule(INTERVAL seconds, INTERVAL seconds) {
     passed += INTERVAL
-    channel ! Countdown(passed)
+    val msg: JsValue = Countdown(passed)
+    channel ! msg
 
 
   }
-  private val handle: Cancellable = ctx.system.scheduler.scheduleOnce(timeout.duration) {
-    countdown.cancel()
+
+  private def cleanup = {
     var index = ctx.pendingFinders.indexOf(this)
     if (index > -1)
       ctx.pendingFinders.remove(index)
     index = ctx.finders.indexOf(this)
     if (index > -1)
       ctx.finders.remove(index)
+  }
+
+  private val handle: Cancellable = ctx.system.scheduler.scheduleOnce(timeout.duration) {
+    countdown.cancel()
+    cleanup
     p.failure(FinderTimeout(creatorId))
 
   }
@@ -68,8 +75,8 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
 
   future onSuccess {
     case _ => {
-      countdown.cancel()
-      handle.cancel()
+      destroy
+
     }
   }
 
@@ -84,11 +91,11 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
     }
   }
 
-  def resolve(opponentId: String, accepted: Boolean) = {
+  def resolve(opponentId: String, accepted: Boolean): Unit = {
 
     if (accepted) {
 
-      future onSuccess {
+     /* future onSuccess {
         case war: War => {
           val profiles = Seq(creatorId, opponentId)
           val msg: JsValue = profiles.map(ctx.caches.profiles get _) match {
@@ -106,7 +113,7 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
 
 
         }
-      }
+      } */
       future onFailure {
         case x: Throwable => println(x)
       }

@@ -41,6 +41,8 @@ object War extends Controller with WithCors {
   // Akka
   lazy val scope = BattleField
 
+  val log = play.api.Logger
+
   lazy val ctx = scope.instance
   lazy val master = ctx.master
   lazy val caches = scope.caches
@@ -174,7 +176,7 @@ object War extends Controller with WithCors {
       master ! Connect(profileId, channel, fromInvite)
       val in = Iteratee.foreach[JsValue] {
         js =>
-          play.api.Logger.info(js.toString())
+          log info (js.toString())
           js match {
             case Extractor.HandleInvite(a) => {
               if (profile.isEmpty) {
@@ -207,8 +209,8 @@ object War extends Controller with WithCors {
               }
 
             }
-            case Extractor.Invite(r) => master.ask(r)(Timeout(30, SECONDS)).mapTo[String] onComplete {
-              case Success(token) => {
+            case Extractor.Invite(r) => master.ask(r)(Timeout(30, SECONDS)) onComplete {
+              case Success(token: String) => {
 
                 val feedback = caches.invites(token).map {
                   _ => withFeedback(s"Invite for ${r.email} has already been sent")
@@ -223,7 +225,11 @@ object War extends Controller with WithCors {
 
                 channel push (feedback)
               }
-              case Failure(e) => channel push (e)
+              case Failure(e) => {
+
+                log error("Invite Failure", e)
+                channel push (Option(e.getCause).getOrElse(e))
+              }
               // TODO add auto battle creation if user is currently on the site
 
             }
@@ -249,7 +255,10 @@ object War extends Controller with WithCors {
             }
 
 
-            case x: Any => play.api.Logger.error(s"Recieved malformed json ${js.toString}")
+            case x: Any => {
+              log error (s"Received malformed json ${js.toString}")
+              channel push withError("Malformed request, no points awarded")
+            }
 
 
           }
