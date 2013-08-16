@@ -1,4 +1,4 @@
-import akka.actor.{Actor, Props}
+import akka.actor._
 import akka.testkit.{TestKitBase, TestActorRef, TestKit}
 import akka.util.Timeout
 import battle._
@@ -27,8 +27,8 @@ class BattleFieldSpec extends Specification with Helpers {
 
   import akka.pattern.ask
 
-  class TestChannelContext(val ref: TestActorRef[Connection]) extends ChannelContext(ref.path)
 
+  type ConnectionRef = TestActorRef[Connection]
   sequential
 
   class BattleField extends battle.BattleField {
@@ -39,14 +39,15 @@ class BattleFieldSpec extends Specification with Helpers {
     import TestSchema._
     implicit val system = bf.system
 
-    val (e, channel) = Concurrent.broadcast[JsValue]
-    var trench = bf trench
-
-    val c = TestActorRef(Connection(channel), name = s"profile_${id}")
-    trench += (id -> new TestChannelContext(c))
+    val (_, channel) = Concurrent.broadcast[JsValue]
+    val trench = bf trench
     val p = models.Profile(id, "a", "b", "b", "a")
     p.save
     bf.caches.profiles.set(id, p)
+
+    trench ! Connect(id, channel, false)
+
+
     p
     // p
   }
@@ -58,16 +59,18 @@ class BattleFieldSpec extends Specification with Helpers {
     "release blacklist after 5 seconds" in new WithApplication {
 
       implicit val bf = battleField
-      val (_, channel) = Concurrent.broadcast[JsValue]
+
       val profileId = profile("foo").id
 
 
-      var trench = bf trench
+      var state = bf state
 
-      def ctx = (trench get profileId get)
+      val trench = bf.trench
+
+      def ctx = (state get profileId get)
 
 
-      trench block (profileId)
+      trench ! Block(profileId)
 
       ctx.blacklisted must beSome
 
@@ -80,7 +83,7 @@ class BattleFieldSpec extends Specification with Helpers {
 
     "mark opponent as already seen" in new WithApplication {
       implicit val bf = battleField
-
+      implicit val system = bf.system
 
       class DummyActor extends Actor {
         def receive = {
@@ -91,19 +94,23 @@ class BattleFieldSpec extends Specification with Helpers {
       val creator = profile("foo")
       val opponent = profile("bar")
 
-      val dummy = bf.system.actorOf(Props(new DummyActor))
 
-      val finder = bf.find(creator, dummy, Timeout(30, SECONDS))
+      bf.finders ! Find("foo")
 
-      finder.resolve(opponent.id, false)
+      val ref = withValue(Finders.identify("foo"), 5).asInstanceOf[TestActorRef[Finder]]
+      ref ! ResolveChallenge(opponent.id, false)
 
-      finder.seen(opponent.id) mustEqual true
+
+
+
+      ref.underlyingActor.seen(opponent.id) mustEqual true
 
 
     }
 
     def withWar = {
       implicit val bf = battleField
+      implicit val system = bf.system
 
       class DummyActor extends Actor {
         def receive = {
@@ -114,12 +121,13 @@ class BattleFieldSpec extends Specification with Helpers {
       val creator = profile("foo")
       val opponent = profile("bar")
 
-      val dummy = bf.system.actorOf(Props(new DummyActor))
 
-      val finder = bf.find(creator, dummy, Timeout(50, SECONDS))
+      bf.finders ! Find("foo")
 
-      finder.resolve(opponent.id, true)
-      (bf, finder, creator, opponent)
+      val ref = withValue(Finders.identify("foo"), 5).asInstanceOf[TestActorRef[Finder]]
+
+      ref.underlyingActor.resolve(opponent.id, true)
+      (bf, ref.underlyingActor, creator, opponent)
 
     }
 
@@ -142,8 +150,9 @@ class BattleFieldSpec extends Specification with Helpers {
       val creator = profile("foo")
       val opponent = profile("bar")
 
-      val cCtx = (bf.trench get "foo" get).asInstanceOf[TestChannelContext]
-      val oCtx = (bf.trench get "bar" get).asInstanceOf[TestChannelContext]
+
+      val creatorRef = (bf.state get "foo" get).asInstanceOf[ConnectionRef]
+      val opponentRef = (bf.state get "bar" get).asInstanceOf[ConnectionRef]
 
       val creatorStats = creator.stats
 
@@ -153,8 +162,8 @@ class BattleFieldSpec extends Specification with Helpers {
 
       val dur = Duration(5, SECONDS)
 
-      val creatorRef = oCtx.ref
-      val ref = TestActorRef(new WarBattle(war, creator.id, opponent.id, cCtx.actorPath, oCtx.actorPath))
+
+      val ref = TestActorRef(WarBattle(war, creator.id, opponent.id, creatorRef.path, opponentRef.path))
 
 
       ref ! WarAction("foo", war.id.get, CreateBoard(UUID.randomUUID().toString, "foo", "#pinterestwars", war.category, "http://google.com"))

@@ -1,7 +1,7 @@
 package actions
 
 import com.rethinkscala.net.Connection
-import play.api.mvc.{Action, Result, AnyContent, Request}
+import play.api.mvc._
 
 /**
  * Created by IntelliJ IDEA.
@@ -10,7 +10,7 @@ import play.api.mvc.{Action, Result, AnyContent, Request}
  * Time: 1:46 PM 
  */
 trait WithCors {
-  def AllowCors(f: Request[AnyContent] => Result) = Action {
+  def AllowCors(f: Request[AnyContent] => SimpleResult) = Action {
     implicit request =>
       f(request).withHeaders(
         "Access-Control-Allow-Origin" -> "*",

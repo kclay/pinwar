@@ -19,6 +19,7 @@ import scala.Some
 import net.sf.ehcache.event.CacheEventListener
 import net.sf.ehcache.{Element, Ehcache}
 import utils.Master
+import akka.routing.FromConfig
 
 
 /**
@@ -93,6 +94,11 @@ object BattleField {
 
 class BattleField {
 
+  import play.api.Play.current
+
+  class TrenchState extends mutable.HashMap[String, ChannelContext] with mutable.ObservableMap[String, ChannelContext] {
+    type Pub = TrenchState
+  }
 
   lazy val caches = new CacheStore
   val timeoutThreshold = 5
@@ -100,7 +106,7 @@ class BattleField {
 
 
   val inviteTimeout = Timeout(5, MINUTES)
-  val system = Akka.system
+  implicit val system = Akka.system
 
   val sub = new TrenchSub(this)
 
@@ -114,34 +120,19 @@ class BattleField {
 
   val activeWars = mutable.Map.empty[String, String]
 
-  val challengeTokens = mutable.Map.empty[String, Finder]
-  val pendingFinders = mutable.ArrayBuffer.empty[Finder]
+  val challengeTokens = mutable.Map.empty[String, ActorSelection]
+
+  val state = new TrenchState
 
 
-  val finders = mutable.ArrayBuffer.empty[Finder]
+  def currentMode = current.mode
 
+  val connections = Connections(this)
 
-  val trench = new Trench(this)
+  val trench = Trench(this, currentMode)
+  val finders = Finders(this)
 
-  trench.subscribe(sub)
-
-  def challengeTokenFor(f: Finder) = {
-
-    val token = UUID.randomUUID().toString
-    challengeTokens += (token -> f)
-    token
-  }
-
-  def find(creator: Profile, sender: ActorRef, timeout: Timeout) = {
-
-
-    val finder = Finder(this, creator, sender, timeout)
-    pendingFinders.append(finder)
-    finder
-
-
-  }
-
+  def profileFor(profileId: String) = caches.profiles get profileId
 
   def actorPath(name: String) = (ActorPath.fromString(
     "akka://%s/user/%s".format(system.name, name)))

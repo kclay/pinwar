@@ -1,12 +1,16 @@
 package battle
 
-import models.{War, Profile}
-import akka.actor.{Cancellable, ActorRef}
+import models.{CacheStore, War, Profile}
+import akka.actor._
 import scala.concurrent._
 import akka.util.Timeout
-import akka.pattern.ask
 import scala.concurrent.duration._
 import play.api.libs.json.JsValue
+import scala.collection.mutable
+import scala.Some
+import akka.pattern.ask
+import akka.routing.FromConfig
+import utils.ActorCreator
 
 
 /**
@@ -17,19 +21,98 @@ import play.api.libs.json.JsValue
  */
 
 
+case object RequestFind
+
+case class QueueFinder(ref: ActorRef)
+
+case class DestroyFinder(profileId: String)
+
+case class ResolveChallenge(opponentId: String, accepted: Boolean)
+
+case class ChallengeRequested(opponentId: String)
+
+case class ApplyToFinder(opponentId: String, channel: ChannelContext)
+
+
+object Finders extends ActorCreator {
+
+
+  def props(bf: BattleField) = Props(classOf[Finders], bf.trench, bf.findTimeout, bf.caches)
+
+}
+
+case class Finders(trench: ActorRef, timeout: Timeout, cache: CacheStore) extends Actor with ActorLogging {
+
+  private val pending = mutable.ArrayBuffer.empty[ActorRef]
+
+
+  private val stashed = mutable.ArrayBuffer.empty[ActorRef]
+
+
+  def newFinder(profileId: String) = {
+    val profile = cache.profiles get profileId
+    val finder = context.actorOf(Props(classOf[Finder], trench, profile, timeout))
+    context.watch(finder)
+
+    pending += finder
+    finder
+  }
+
+  def receive = {
+
+    case Find(profileId) => newFinder(profileId)
+
+
+    case ApplyToFinder(opponentId: String, _) => {
+      pending.headOption map {
+        finder => {
+          log.info("Found a pending users, removing from queue and resolving Finder")
+          pending remove 0
+          stashed += finder
+          // update opponent state
+          finder ! ChallengeRequested(opponentId)
+
+        }
+      } orElse {
+        log.warning("No pending users waiting")
+        None
+      }
+    }
+
+
+    case Terminated(ref) => Seq(pending, stashed).map {
+      collection =>
+        val index = collection.indexOf(ref)
+        if (index > -1) collection.remove(index)
+    }
+    case QueueFinder(ref) => if (!pending.contains(ref)) {
+      pending += ref
+    } else log info s"Finder already in queue $ref"
+    case DestroyFinder(profileId) => {
+      context.actorSelection(profileId) ! PoisonPill
+
+    }
+  }
+
+}
+
 case class FinderTimeout(creatorId: String) extends Exception(s"Wasn't able to find any opponents for ${creatorId}")
 
-case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout: Timeout) {
+case class Finder(trench: ActorRef, profile: Profile, timeout: Timeout) extends Actor {
 
   import utils.Serialization.Writes._
 
-  implicit val system = ctx.system
 
+  implicit val system = context.system
+  lazy val selection = ActorSelection(self, "")
+  val scheduler = system.scheduler
+
+  val master = system.actorSelection("/user/master")
   private val alreadySeen = collection.mutable.ArrayBuffer.empty[String]
 
   def seen(profileId: String) = alreadySeen.contains(profileId)
 
-  implicit val exec: ExecutionContext = ctx.system.dispatcher
+  implicit val exec: ExecutionContext = system.dispatcher
 
   private val p = promise[War]
 
@@ -37,36 +120,40 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
 
   val creatorId = profile.id
 
+  override def preStart() {
+    super.preStart()
+    trench ! FindOpponent(creatorId, alreadySeen, Some((selection, profile)))
+  }
+
+
+  override def postStop() {
+    destroy
+    super.postStop()
+  }
 
   def destroy = {
-    cleanup
+
     countdown.cancel()
     handle.cancel()
 
   }
 
-  private val channel = ctx.trench.get(creatorId).get
+  private val actorRef = Connection.actorFor(creatorId)
+
+
   var passed = 0
-  private val countdown = ctx.system.scheduler.schedule(INTERVAL seconds, INTERVAL seconds) {
+  private val countdown = scheduler.schedule(INTERVAL seconds, INTERVAL seconds) {
     passed += INTERVAL
     val msg: JsValue = Countdown(passed)
-    channel ! msg
+    actorRef ! msg
 
 
   }
 
-  private def cleanup = {
-    var index = ctx.pendingFinders.indexOf(this)
-    if (index > -1)
-      ctx.pendingFinders.remove(index)
-    index = ctx.finders.indexOf(this)
-    if (index > -1)
-      ctx.finders.remove(index)
-  }
 
-  private val handle: Cancellable = ctx.system.scheduler.scheduleOnce(timeout.duration) {
+  private val handle: Cancellable = scheduler.scheduleOnce(timeout.duration) {
     countdown.cancel()
-    cleanup
+
     p.failure(FinderTimeout(creatorId))
 
   }
@@ -81,39 +168,59 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
   }
 
 
-  def request(opponentId: String) = ctx.trench.get(opponentId) map {
-    c => {
+  def receive = {
 
-      ctx.trench :=+ opponentId
-      // TODO Send email
-      c ! (ChallengeRequest(ctx.challengeTokenFor(this), profile): JsValue)
 
-    }
+    case ChallengeRequested(opponentId) => trench ! RequestChallenge(selection, profile, opponentId)
+    case ResolveChallenge(opponentId, accepted) => resolve(opponentId, accepted)
   }
 
+  def resolve(opponentId: String, accepted: Boolean): Unit = if (accepted) {
+
+
+    future onFailure {
+      case x: Throwable => println(x)
+    }
+    p.completeWith(master.ask(NewWar(creatorId, opponentId))(Timeout(20 seconds)).mapTo[War])
+
+  } else {
+    alreadySeen += opponentId
+
+    val profileId = profile.id
+
+    trench ! FindOpponent(profileId, alreadySeen, Some((selection, profile)))
+
+
+
+    trench ! Block(opponentId) // make opponent not in pending state
+
+
+  }
+
+  /*
   def resolve(opponentId: String, accepted: Boolean): Unit = {
 
     if (accepted) {
 
-     /* future onSuccess {
-        case war: War => {
-          val profiles = Seq(creatorId, opponentId)
-          val msg: JsValue = profiles.map(ctx.caches.profiles get _) match {
-            case Seq(c, o) => WarAccepted(c, o, war)
-          }
-          val ctxs = profiles.map(ctx.trench.get(_)).filter(_.isDefined)
-          if (ctxs.size != 2) {
-            // someone left
-            ctx.pendingFinders += this
+      /* future onSuccess {
+         case war: War => {
+           val profiles = Seq(creatorId, opponentId)
+           val msg: JsValue = profiles.map(ctx.caches.profiles get _) match {
+             case Seq(c, o) => WarAccepted(c, o, war)
+           }
+           val ctxs = profiles.map(ctx.trench.get(_)).filter(_.isDefined)
+           if (ctxs.size != 2) {
+             // someone left
+             ctx.pendingFinders += this
 
-          } else {
+           } else {
 
-            ctxs.flatten.foreach(_ ! msg)
-          }
+             ctxs.flatten.foreach(_ ! msg)
+           }
 
 
-        }
-      } */
+         }
+       } */
       future onFailure {
         case x: Throwable => println(x)
       }
@@ -137,6 +244,6 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
 
     }
   }
-
+        */
 
 }

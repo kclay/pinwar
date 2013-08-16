@@ -101,7 +101,7 @@ object War extends Controller with WithCors {
     Mail(email, "You have been challenged", views.html.email.challenge(from, token).body)
   }
 
-  def newSignup(profile: Profile, token: Option[String] = None)(implicit rh: RequestHeader): Result = {
+  def newSignup(profile: Profile, token: Option[String] = None)(implicit rh: RequestHeader): SimpleResult = {
 
     val p = token.map {
       t => {
@@ -198,8 +198,8 @@ object War extends Controller with WithCors {
 
             }
 
-            case Extractor.Find(f) => {
-              (master.ask(f)(ctx.findTimeout)) onComplete {
+            case Extractor.Find(f) => master ! f
+            /*  (master.ask(f)(ctx.findTimeout)) onComplete {
                 case Success(w: models.War) =>
                 case Failure(e) => {
                   println(s"Find Failure ${e.getMessage}")
@@ -208,9 +208,9 @@ object War extends Controller with WithCors {
                 case _ =>
               }
 
-            }
-            case Extractor.Invite(r) => master.ask(r)(Timeout(30, SECONDS)) onComplete {
-              case Success(token: String) => {
+            }  */
+            case Extractor.Invite(r) => master.ask(r)(Timeout(30, SECONDS)).mapTo[String] onComplete {
+              case Success(token) => {
 
                 val feedback = caches.invites(token).map {
                   _ => withFeedback(s"Invite for ${r.email} has already been sent")

@@ -57,18 +57,21 @@ class Schema(dbName: String) extends com.rethinkscala.Schema {
   implicit val connection = Connection(version)
 
 
-  val profiles = table[Profile]("profiles", db = Some(dbName))
+  val DB = Some(dbName)
+  val profiles = table[Profile]("profiles", db = DB)
 
-  val wars = table[War]("wars", db = Some(dbName))
-  val signups = table[Signup]("signups", db = Some(dbName))
-  val points = table[Point]("points", db = Some(dbName))
-  val stats = table[Stats]("stats", db = Some(dbName))
+  val wars = table[War]("wars", db = DB)
+  val signups = table[Signup]("signups", db = DB)
+  val points = table[Point]("points", db = DB)
+  val stats = table[Stats]("stats", db = DB)
 
-  val boards = table[Board]("boards", db = Some(dbName))
+  val boards = table[Board]("boards", db = DB)
   val likes = table[Like]("likes")
-  val repins = table[Repin]("repins", db = Some(dbName))
-  val pins = table[Pin]("pins", db = Some(dbName))
-  val comments = table[Comment]("comments", db = Some(dbName))
+  val repins = table[Repin]("repins", db = DB)
+  val pins = table[Pin]("pins", db = DB)
+  val comments = table[Comment]("comments", db = DB)
+
+  val challenges = table[ChallengeToken]("challenge_tokens", db = DB)
 
 
   override protected def defineMapper = {

@@ -33,6 +33,8 @@ class Master extends Actor with ActorLogging {
 
   // Holds known workers and what they may be working on
   val workers = Map.empty[ActorRef, Option[(ActorRef, Any)]]
+
+
   // Holds the incoming list of work to be done as well
   // as the memory of who asked for it
   val workQ = Queue.empty[(ActorRef, Any)]

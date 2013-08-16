@@ -11,7 +11,7 @@ import scala.concurrent._
 
 import utils.Worker
 import scala.Some
-import models.War
+import models.{ChallengeToken, War}
 import scala.util.Try
 
 /**
@@ -34,8 +34,8 @@ class BattleFieldWorker(ctx: BattleField, masterPath: ActorPath) extends Worker(
 
   implicit val timeout = Timeout(5, SECONDS)
 
-  implicit val ctxSystem = context.system
-  implicit val ec = ctxSystem.dispatcher
+
+  implicit val ec = system.dispatcher
 
 
   def newWar(sender: ActorRef, creatorId: String, opponentId: String) = (master.ask(NewWar(creatorId, opponentId))(Timeout(20, SECONDS))).mapTo[War]
@@ -53,11 +53,7 @@ class BattleFieldWorker(ctx: BattleField, masterPath: ActorPath) extends Worker(
   } pipeTo (self)
 
 
-  def push(profileId: String, m: JsValue) = ctxFor(profileId) map (_ ! m)
-
-  def ctxFor(profileId: String) = trench get (profileId)
-
-  def profileFor(profileId: String) = caches.profiles get profileId
+  def push(profileId: String, m: JsValue) = Connection.actorFor(profileId) ! m
 
 
   val ProfileId = "profile_([0-9]+)".r
@@ -85,61 +81,22 @@ class BattleFieldWorker(ctx: BattleField, masterPath: ActorPath) extends Worker(
   }
 
   private def processWork(ref: ActorRef, work: Any): Unit = work match {
-    case Connect(profileId, channel, fromInvite) => {
-      val connection = context.system.actorOf(Props(Connection(channel)), name = s"profile_${profileId}")
-      context.watch(connection)
-      trench += (profileId -> new ChannelContext(connection.path, pending = fromInvite))
-    }
+    case c: Connect => connections ! c
 
-    case Terminated(actor) => {
-      actor.path.name match {
-        case ProfileId(profileId) => {
-          context.unwatch(actor)
-          self ! Disconnect(profileId)
-        }
-        case _ =>
-      }
+    case f: Find => finders.tell(f, ref)
 
-
-    }
-    case Find(profileId) => {
-
-
-      // update state
-      trench :=+ profileId
-
-      val profile = profileFor(profileId)
-      val finder = find(profile, ref, findTimeout.duration)
-      trench.collectFirst {
-        case (p, c) if (p != profileId && c.available) => p
-      } match {
-        case Some(opponentId) => {
-
-
-          log.info(s"Found a opponent for ${profile.name} to battle ${profileFor(opponentId).name}")
-
-          finder.request(opponentId)
-        }
-        case _ => log.info(s"Couldn't find any available user, putting ${profile.name} into `listen` state")
-
-
-      }
-
-
-      finder.future pipeTo ref
-
-    }
 
     case cr@ChallengeResponse(profileId, token, accepted, creatorId) => {
       log info s"Processing $cr"
-      challengeTokens remove (token) match {
-        case Some(finder) => finder resolve(profileId, accepted)
-        case _ => {
-          log warning s"Finder for challenge token $token was not found"
-          push(profileId, new Error(s"${profileFor(creatorId).name} went offline"))
-        }
 
+
+      ChallengeToken(token) match {
+        case Some(ct) => ct.resolve(profileId, accepted)
+        case None => log warning s"Finder for challenge token $token was not found"
+          push(profileId, new Error(s"${profileFor(creatorId).name} went offline"))
       }
+
+
     }
     case HandleInvite(opponentId, token, accept, profile) => {
 
@@ -148,8 +105,8 @@ class BattleFieldWorker(ctx: BattleField, masterPath: ActorPath) extends Worker(
         case Some((creatorId, _)) => {
           if (accept) {
             // update status to pending
-            trench :=+ creatorId
-            trench :=+ opponentId
+            trench ! MarkPending(creatorId, opponentId)
+
             // try to resolve the invite
             newWar(sender, creatorId, opponentId) pipeTo ref
 
@@ -190,31 +147,30 @@ class BattleFieldWorker(ctx: BattleField, masterPath: ActorPath) extends Worker(
 
     case NewWar(creatorId, opponentId) => {
       log.info(s"New War request for $creatorId vs $opponentId")
-      val maybeWar = (for {
-        creator <- trench get creatorId
-        opponent <- trench get opponentId
 
-      } yield {
-        log.info("Found users creating war instance")
-        val war = War.create(creatorId, opponentId)
-        war map {
-          w =>
+      val creator = Connection.actorFor(creatorId)
+      val opponent = Connection.actorFor(opponentId)
 
-            context.system.actorOf(Props(new WarBattle(w, creatorId, opponentId, creator.actorPath, opponent.actorPath)), name = s"war_${w.id.get}")
+      log.info("Found users creating war instance")
+      val war = War.create(creatorId, opponentId)
+      war map {
+        w =>
 
+          context.system.actorOf(Props(new WarBattle(w, creatorId, opponentId, creator, opponent)), name = s"war_${w.id.get}")
 
 
-            invitesIds -= opponentId
-            invitesIds -= creatorId
-            //watch(battle)
-            w
 
-        }
+          invitesIds -= opponentId
+          invitesIds -= creatorId
+          //watch(battle)
+          w
+
+      }
 
 
-      }).flatten
 
-      maybeWar match {
+
+      war match {
         case Some(w) => ref ! w
         case _ => ref ! Failure(new Error("Opponent wasn't found"))
       }
@@ -233,29 +189,7 @@ class BattleFieldWorker(ctx: BattleField, masterPath: ActorPath) extends Worker(
     }
 
     case d@Disconnect(profileId) => {
-      trench.remove(profileId) map {
-        cc => {
-          log.info(s"Sending PoisonPill to $profileId")
-          cc ! PoisonPill
-          invitesIds -= profileId
 
-          Seq(finders, pendingFinders).map {
-            collection => collection.find(_.creatorId == profileId).map {
-              f => {
-                log info s"Destorying finder for $profileId"
-                f.destroy
-
-              }
-            }
-          }
-
-          challengeTokens retain ((t, f) => f.creatorId != profileId)
-          invites.retain {
-            case (k, (creatorId, _)) => creatorId != profileId
-          }
-        }
-
-      }
 
     }
     case _ => log.info("nothing")

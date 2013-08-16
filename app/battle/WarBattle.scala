@@ -15,7 +15,13 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 
 
-class WarBattle(war: War, creatorId: String, opponentId: String, creatorPath: ActorPath, opponentPath: ActorPath) extends Actor with ActorLogging {
+object WarBattle {
+  def apply(war: War, creatorId: String, opponentId: String, creator: ActorPath, opponent: ActorPath)(implicit system: ActorSystem) = {
+    new WarBattle(war, creatorId, opponentId, system.actorSelection(creator), system.actorSelection(opponent))
+  }
+}
+
+class WarBattle(war: War, creatorId: String, opponentId: String, creator: ActorSelection, opponent: ActorSelection) extends Actor with ActorLogging {
 
 
   import utils.Serialization.Writes.{pointsWrites, throwable2Json, appError2Json, wonWrites, warAcceptedWrites, event2JsValue}
@@ -23,9 +29,7 @@ class WarBattle(war: War, creatorId: String, opponentId: String, creatorPath: Ac
 
   import BattleField.instance.caches
 
-  val creator = context.system.actorSelection(creatorPath)
 
-  val opponent = context.system.actorSelection(opponentPath)
   val channels = Seq(creator, opponent)
 
   val pointsNeededToWin = war.rules.points
