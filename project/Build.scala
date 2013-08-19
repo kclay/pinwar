@@ -14,6 +14,7 @@ object ApplicationBuild extends Build {
 
   val appResolvers = Seq(
     "Typesafe Repository2" at "http://typesafe.artifactoryonline.com/typesafe/",
+    "Rhinofly Internal Release Repository" at "http://maven-repository.rhinofly.net:8081/artifactory/libs-release-local",
     "Keyston Repository" at "http://kclay.github.io/releases",
     Resolver.file("LocalIvy", file(Path.userHome +
       File.separator + ".ivy2" + File.separator +
@@ -35,7 +36,9 @@ object ApplicationBuild extends Build {
     "com.typesafe.akka" %% "akka-contrib" % akkaVersion,
     "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
 
-    "com.fasterxml.jackson.datatype" % "jackson-datatype-joda" % "2.1.1"
+
+
+  "com.fasterxml.jackson.datatype" % "jackson-datatype-joda" % "2.1.1"
 
   )
 

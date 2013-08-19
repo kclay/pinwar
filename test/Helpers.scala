@@ -38,15 +38,23 @@ trait Helpers {
   abstract class WithApplication(val app: FakeApplication = new TestApplication) extends Around with Scope {
     implicit def implicitApp = app
 
+
+    def before: Unit = {}
+
+    def after: Unit = {}
+
     override def around[T: AsResult](t: => T): Result = {
 
 
       play.api.test.Helpers.running(app)(AsResult.effectively({
+        before
         Cache(app)
         CurrentSchema(Some(TestSchema))
 
 
-        t
+        val value = t
+        after
+        value
       }))
     }
   }

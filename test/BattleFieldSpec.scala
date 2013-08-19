@@ -7,7 +7,7 @@ import battle.Connection
 import battle.WarAction
 import java.util.UUID
 import models.War
-import org.specs2.mutable.Specification
+import org.specs2.mutable.{After, Specification}
 import play.api.cache.Cache
 import play.api.libs.iteratee.Concurrent
 import play.api.libs.json.JsValue
@@ -31,6 +31,40 @@ class BattleFieldSpec extends Specification with Helpers {
 
   sequential
 
+  abstract class Battle extends WithApplication  {
+    private lazy val _bf = new BattleField
+
+    implicit def bf = _bf
+
+    implicit def system = bf.system
+
+    override def after = {
+      system.shutdown()
+      system.awaitTermination()
+    }
+  }
+
+  def withWar(implicit bf: BattleField) = {
+
+
+    class DummyActor extends Actor {
+      def receive = {
+        case _ =>
+      }
+    }
+
+    val creator = profile("foo")
+    val opponent = profile("bar")
+
+    val dummy = bf.system.actorOf(Props(new DummyActor))
+
+    val finder = bf.find(creator, dummy, Timeout(50, SECONDS))
+
+    finder.resolve(opponent.id, true)
+    (finder, creator, opponent)
+
+  }
+
   class BattleField extends battle.BattleField {
     override val blacklistTimeout: FiniteDuration = FiniteDuration(5, SECONDS)
   }
@@ -39,7 +73,7 @@ class BattleFieldSpec extends Specification with Helpers {
     import TestSchema._
     implicit val system = bf.system
 
-    val (e, channel) = Concurrent.broadcast[JsValue]
+    val (_, channel) = Concurrent.broadcast[JsValue]
     var trench = bf trench
 
     val c = TestActorRef(Connection(channel), name = s"profile_${id}")
@@ -55,9 +89,10 @@ class BattleFieldSpec extends Specification with Helpers {
 
   "battle" should {
 
-    "release blacklist after 5 seconds" in new WithApplication {
 
-      implicit val bf = battleField
+    "release blacklist after 5 seconds" in new Battle {
+
+
       val (_, channel) = Concurrent.broadcast[JsValue]
       val profileId = profile("foo").id
 
@@ -78,8 +113,7 @@ class BattleFieldSpec extends Specification with Helpers {
 
     }
 
-    "mark opponent as already seen" in new WithApplication {
-      implicit val bf = battleField
+    "mark opponent as already seen" in new Battle {
 
 
       class DummyActor extends Actor {
@@ -102,36 +136,16 @@ class BattleFieldSpec extends Specification with Helpers {
 
     }
 
-    def withWar = {
-      implicit val bf = battleField
 
-      class DummyActor extends Actor {
-        def receive = {
-          case _ =>
-        }
-      }
-
-      val creator = profile("foo")
-      val opponent = profile("bar")
-
-      val dummy = bf.system.actorOf(Props(new DummyActor))
-
-      val finder = bf.find(creator, dummy, Timeout(50, SECONDS))
-
-      finder.resolve(opponent.id, true)
-      (bf, finder, creator, opponent)
-
-    }
-
-    "create new war" in new WithApplication {
-      val (bf, finder, _, _) = withWar
+    "create new war" in new Battle {
+      val (finder, _, _) = withWar
       finder.future must beAnInstanceOf[models.War].await
+
+
     }
 
-    "have creator as winner" in new WithApplication {
-      implicit val bf = battleField
 
-      implicit val system = bf.system
+    "have creator as winner" in new Battle {
 
 
       import models.Schema
@@ -157,6 +171,7 @@ class BattleFieldSpec extends Specification with Helpers {
       val ref = TestActorRef(new WarBattle(war, creator.id, opponent.id, cCtx.actorPath, oCtx.actorPath))
 
 
+      block(2)
       ref ! WarAction("foo", war.id.get, CreateBoard(UUID.randomUUID().toString, "foo", "#pinterestwars", war.category, "http://google.com"))
 
 
@@ -181,8 +196,8 @@ class BattleFieldSpec extends Specification with Helpers {
 
     }
 
-    "create pending rematch request" in new WithApplication {
-      implicit val bf = battleField
+
+    "create pending rematch request" in new Battle {
 
 
       val creator = profile("foo")
@@ -197,8 +212,8 @@ class BattleFieldSpec extends Specification with Helpers {
 
 
     }
-    "create pending invite request" in new WithApplication {
-      implicit val bf = battleField
+
+    "create pending invite request" in new Battle {
 
 
       val creator = profile("foo")
@@ -218,6 +233,7 @@ class BattleFieldSpec extends Specification with Helpers {
 
       bf.caches.invites.as[String](token) must beSome
     }
+
 
   }
 

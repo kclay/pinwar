@@ -102,18 +102,21 @@ class WarBattle(war: War, creatorId: String, opponentId: String, creatorPath: Ac
       if (activate.get()) {
         context.become(active)
         log.info("Becomming active")
+        val profiles = Seq(creatorId, opponentId)
+        val msg: JsValue = profiles.map(caches.profiles get _) match {
+          case Seq(c, o) => WarAccepted(c, o, war)
+        }
+        channels foreach (_ ! msg)
       }
-      val profiles = Seq(creatorId, opponentId)
-      val msg: JsValue = profiles.map(caches.profiles get _) match {
-        case Seq(c, o) => WarAccepted(c, o, war)
-      }
-      channels foreach (_ ! msg)
+
 
       activate.set(true)
 
 
     }
-    case ActorIdentity(id, None) =>
+    case ActorIdentity(id, None) => {
+      log error s"Couldn't find ActorRef for profile = $id"
+    }
 
   }
 
@@ -143,9 +146,11 @@ class WarBattle(war: War, creatorId: String, opponentId: String, creatorPath: Ac
           checkPoints
         }
         case Left(e) => {
+
           val msg: JsValue = e
           ctxFor(profileId) ! msg
         }
+
       }
     }
     case x: Any => log.debug(s"Message not processed $x")
