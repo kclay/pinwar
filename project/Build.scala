@@ -9,7 +9,7 @@ import com.typesafe.sbt.SbtAtmos.{Atmos, atmosSettings}
 object ApplicationBuild extends Build {
 
   val appName = "server"
-  val appVersion = "1.0-SNAPSHOT"
+  val appVersion = "1.0"
 
 
   val appResolvers = Seq(

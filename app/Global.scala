@@ -14,12 +14,10 @@ object Global extends GlobalSettings {
   override def onStart(app: Application) {
 
     CurrentSchema(None)
-
-
-    val loader = app.classloader
+    import models.Schema.connection
+    models.Schema.setup
 
     super.onStart(app)
-    //import models.Schema._
-    //models.Schema.setup
+
   }
 }
