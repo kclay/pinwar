@@ -16,6 +16,7 @@ object ApplicationBuild extends Build {
     "Typesafe Repository2" at "http://typesafe.artifactoryonline.com/typesafe/",
     "Rhinofly Internal Release Repository" at "http://maven-repository.rhinofly.net:8081/artifactory/libs-release-local",
     "Keyston Repository" at "http://kclay.github.io/releases",
+    "Keyston Repository" at "http://kclay.github.io/snapshots",
     Resolver.file("LocalIvy", file(Path.userHome +
       File.separator + ".ivy2" + File.separator +
       "local"))(Resolver.ivyStylePatterns)
