@@ -93,3 +93,5 @@ case class RematchContext(token: String, email: String, profile: Profile)
 
 case class Countdown(passed: Int) extends Event
 
+class Ping extends Event
+

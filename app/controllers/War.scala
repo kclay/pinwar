@@ -8,19 +8,23 @@ import akka.pattern.ask
 import akka.util.Timeout
 import akka.actor._
 import battle._
-import models.{Fetch, Signup, Profile}
+import models.{Fetch, Signup}
 import play.api.data._
 import play.api.data.Forms._
 
 import play.api.Play.current
-import utils.Mail
+import utils.{WatchedChannel, Mail}
 import actions.WithCors
-import play.api.cache.Cache
+import play.api.cache.{Cached, Cache}
 
 
+import battle.Connect
 import scala.Some
 import com.rethinkscala.net.RethinkNoResultsError
+import battle.RematchContext
 import play.api.libs.json.JsObject
+import models.Profile
+import battle.Disconnect
 
 
 /**
@@ -66,12 +70,14 @@ object War extends Controller with WithCors {
   )
 
 
-  def player(p: Profile) = AllowCors {
-    implicit request =>
-      var jsp = profileWrites.writes(p).asInstanceOf[JsObject]
-      jsp = jsp +("rank", Json.toJson(p.rank))
-      jsp = jsp +("stats", Json.toJson(p.stats))
-      Ok(jsp)
+  def player(p: Profile) = Cached(s"player-${p.id}") {
+    AllowCors {
+      implicit request =>
+        var jsp = profileWrites.writes(p).asInstanceOf[JsObject]
+        jsp = jsp +("rank", Json.toJson(p.rank))
+        jsp = jsp +("stats", Json.toJson(p.stats))
+        Ok(jsp)
+    }
   }
 
   def confirm(token: String) = AllowCors {
@@ -168,12 +174,14 @@ object War extends Controller with WithCors {
 
       val (out, channel) = Concurrent.broadcast[JsValue]
 
-
+      val watchedChannel = new WatchedChannel(channel, ctx.system)
 
       var profile = Fetch.profile(profileId)
 
 
-      master ! Connect(profileId, channel, fromInvite)
+      master ! Connect(profileId, watchedChannel, fromInvite)
+
+
       val in = Iteratee.foreach[JsValue] {
         js =>
           log info (js.toString())
@@ -191,7 +199,7 @@ object War extends Controller with WithCors {
                   caches.invites - a.token
                   master ! a
                 }
-                case _ => channel.push(withError("It seems that your challenge request has expired"))
+                case _ => watchedChannel.push(withError("It seems that your challenge request has expired"))
 
               }
 
@@ -203,7 +211,7 @@ object War extends Controller with WithCors {
                 case Success(w: models.War) =>
                 case Failure(e) => {
                   println(s"Find Failure ${e.getMessage}")
-                  channel.push(e)
+                  watchedChannel.push(e)
                 }
                 case _ =>
               }
@@ -223,12 +231,12 @@ object War extends Controller with WithCors {
 
                 }
 
-                channel push (feedback)
+                watchedChannel push (feedback)
               }
               case Failure(e) => {
 
                 log error("Invite Failure", e)
-                channel push (Option(e.getCause).getOrElse(e))
+                watchedChannel push (Option(e.getCause).getOrElse(e))
               }
               // TODO add auto battle creation if user is currently on the site
 
@@ -248,16 +256,16 @@ object War extends Controller with WithCors {
 
 
 
-                channel push (withFeedback(s"A Challenge request has been sent out to ${c.profile.name}"))
+                watchedChannel push (withFeedback(s"A Challenge request has been sent out to ${c.profile.name}"))
               }
-              case _ => channel push withError("Unable to send a rematch request")
+              case _ => watchedChannel push withError("Unable to send a rematch request")
 
             }
 
 
             case x: Any => {
               log error (s"Received malformed json ${js.toString}")
-              channel push withError("Malformed request, no points awarded")
+              watchedChannel push withError("Malformed request, no points awarded")
             }
 
 
@@ -265,7 +273,10 @@ object War extends Controller with WithCors {
 
 
       } map {
-        _ => master ! Disconnect(profileId)
+        _ => {
+          master ! Disconnect(profileId)
+          watchedChannel.done
+        }
       }
 
       (in, out &> Concurrent.buffer(100))

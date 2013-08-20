@@ -29,11 +29,8 @@ case class Profile(id: String, username: String, name: String, email: String, av
   @JsonIgnore
   lazy val lastName = name.split(" ").drop(1).mkString(" ")
 
-  private def _rank(s: Sequence) = s.order("points" desc).indexesOf((v: Var) => (v \ "profileId").eq(id: Literal)).as[Int].right.toOption.map {
-    x => {
-      Logger.info(s"Rank : $x")
-      x.headOption
-    }
+  private def _rank(s: Sequence) = s.order("points" desc).indexesOf((v: Var) => (v \ "id").eq(id: Literal)).as[Long].right.toOption.map {
+    x => x.headOption.map(_.toInt + 1)
   }.flatten getOrElse (0)
 
 
