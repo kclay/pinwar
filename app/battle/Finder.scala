@@ -33,6 +33,11 @@ case class ChallengeRequested(opponentId: String)
 
 case class ApplyToFinder(opponentId: String, channel: ChannelContext)
 
+case object SeenWho
+
+
+case class Seen(list: Seq[String])
+
 
 object Finders extends ActorCreator {
 
@@ -51,7 +56,7 @@ case class Finders(trench: ActorRef, timeout: Timeout, cache: CacheStore) extend
 
   def newFinder(profileId: String) = {
     val profile = cache.profiles get profileId
-    val finder = context.actorOf(Props(classOf[Finder], trench, profile, timeout))
+    val finder = context.actorOf(Props(classOf[Finder], trench, profile, timeout), profileId)
     context.watch(finder)
 
     pending += finder
@@ -98,6 +103,15 @@ case class Finders(trench: ActorRef, timeout: Timeout, cache: CacheStore) extend
 
 case class FinderTimeout(creatorId: String) extends Exception(s"Wasn't able to find any opponents for ${creatorId}")
 
+
+/*
+object Finder extends ActorCreator {
+  def apply(trench: ActorRef, profile: Profile, timeout: Timeout, currentMode: M)(implicit system: ActorSystem) =
+    apply(Props(classOf[Finder], trench, profile, timeout), currentMode, profile.id)
+
+  def props(bf: BattleField) = ???
+} */
+
 case class Finder(trench: ActorRef, profile: Profile, timeout: Timeout) extends Actor {
 
   import utils.Serialization.Writes._
@@ -107,7 +121,7 @@ case class Finder(trench: ActorRef, profile: Profile, timeout: Timeout) extends 
   lazy val selection = ActorSelection(self, "")
   val scheduler = system.scheduler
 
-  val master = system.actorSelection("/user/master")
+  val master = system.actorSelection("/user/battle_field")
   private val alreadySeen = collection.mutable.ArrayBuffer.empty[String]
 
   def seen(profileId: String) = alreadySeen.contains(profileId)
@@ -170,7 +184,7 @@ case class Finder(trench: ActorRef, profile: Profile, timeout: Timeout) extends 
 
   def receive = {
 
-
+    case SeenWho => sender ! Seen(alreadySeen)
     case ChallengeRequested(opponentId) => trench ! RequestChallenge(selection, profile, opponentId)
     case ResolveChallenge(opponentId, accepted) => resolve(opponentId, accepted)
   }

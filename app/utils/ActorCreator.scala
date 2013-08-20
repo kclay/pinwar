@@ -5,6 +5,9 @@ import akka.actor._
 import akka.util.Timeout
 import akka.actor.Identify
 import scala.concurrent.Future
+import play.api.Mode._
+import akka.actor.ActorIdentity
+import akka.actor.Identify
 
 /**
  * Created by IntelliJ IDEA.
@@ -20,6 +23,9 @@ trait ActorCreator {
   import scala.concurrent.duration._
 
   type ChildType
+  type M = Mode
+
+  val ofChild = false
 
   lazy val actorName = utils.StringHelper.lowerCaseWithUnderscore(this getClass)
 
@@ -29,10 +35,14 @@ trait ActorCreator {
 
   def child(name: String)(implicit system: ActorSystem) = system.actorSelection(s"/user/$actorName/$name")
 
-  def apply(p: Props, mode: Mode)(implicit system: ActorSystem): ActorRef = mode match {
-    case Test => TestActorRef(p, actorName)
-    case _ => system.actorOf(p, actorName)
+  def apply(p: Props, mode: Mode)(implicit system: ActorSystem): ActorRef = apply(p, mode, actorName)
+
+  def apply(p: Props, mode: Mode, name: String)(implicit system: ActorSystem): ActorRef = mode match {
+    case Test => TestActorRef(p, name)
+    case _ => system.actorOf(p, name)
   }
+
+
 
   def identify(name: String, timeout: Timeout = Timeout(10, SECONDS))(implicit system: ActorSystem): Future[ActorRef] = {
     implicit val ec = system.dispatcher

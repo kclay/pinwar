@@ -19,7 +19,8 @@ object Connection extends ActorCreator {
   def actorFor(profileId: String)(implicit system: ActorSystem) = system.actorSelection(s"/user/profiles/$profileId")
 
 
-  def apply(bf: BattleField, channel: Channel[JsValue])(implicit system: ActorSystem): ActorRef = apply(props(bf).copy(args = immutable.Seq(channel)), bf.currentMode)
+  def apply(bf: BattleField, channel: Channel[JsValue])(implicit system: ActorSystem): ActorRef = apply(Props(classOf[Connection], channel), bf.currentMode)
+
 
   def props(bf: BattleField) = Props[Connection]
 }
