@@ -47,7 +47,7 @@ class WatchedChannel(underlying: Channel[JsValue], system: ActorSystem) extends 
   }
 
   def done {
-    handler.cancel()
+    //handler.cancel()
   }
 
 
