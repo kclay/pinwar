@@ -33,7 +33,7 @@ case class Connection(channel: Channel[JsValue]) extends Actor with ActorLogging
   var lastMessage: Option[JsValue] = None
 
   def receive = {
-    case Terminated(actor) =>
+    case Terminated(actor) => log error "Terminated"
     case item: JsValue => {
 
       channel.push(item)
@@ -42,8 +42,8 @@ case class Connection(channel: Channel[JsValue]) extends Actor with ActorLogging
     }
 
 
-    case x: Any => log info (s"Unhandled = $x")
-    case _ =>
+    case x: Any => log error (s"Unhandled = $x")
+
   }
 }
 

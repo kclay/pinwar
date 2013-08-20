@@ -1,4 +1,4 @@
-import akka.actor._
+import akka.actor.{Actor, Props}
 import akka.testkit.{TestKitBase, TestActorRef, TestKit}
 import akka.util.Timeout
 import battle._
@@ -27,7 +27,18 @@ class BattleFieldSpec extends Specification with Helpers {
 
   import akka.pattern.ask
 
+  abstract class Battle extends WithApplication  {
+    private lazy val _bf = new BattleField
 
+    implicit def bf = _bf
+
+    implicit def system = bf.system
+
+    override def after = {
+      system.shutdown()
+      system.awaitTermination()
+    }
+  }
   type ConnectionRef = TestActorRef[Connection]
   sequential
 
@@ -56,10 +67,9 @@ class BattleFieldSpec extends Specification with Helpers {
 
   "battle" should {
 
-    "release blacklist after 5 seconds" in new WithApplication {
+    "release blacklist after 5 seconds" in new Battle{
 
-      implicit val bf = battleField
-
+     
       val profileId = profile("foo").id
 
 
@@ -69,6 +79,7 @@ class BattleFieldSpec extends Specification with Helpers {
 
       def ctx = (state get profileId get)
 
+    
 
       trench ! Block(profileId)
 
@@ -81,42 +92,26 @@ class BattleFieldSpec extends Specification with Helpers {
 
     }
 
-    "mark opponent as already seen" in new WithApplication {
-      implicit val bf = battleField
-      implicit val system = bf.system
+    "mark opponent as already seen" in new Battle {
 
-      class DummyActor extends Actor {
-        def receive = {
-          case _ =>
-        }
-      }
 
       val creator = profile("foo")
       val opponent = profile("bar")
 
-
+    
       bf.finders ! Find("foo")
 
       val ref = withValue(Finders.identify("foo"), 5).asInstanceOf[TestActorRef[Finder]]
       ref ! ResolveChallenge(opponent.id, false)
 
-
-
-
+     
       ref.underlyingActor.seen(opponent.id) mustEqual true
 
 
     }
 
-    def withWar = {
-      implicit val bf = battleField
-      implicit val system = bf.system
-
-      class DummyActor extends Actor {
-        def receive = {
-          case _ =>
-        }
-      }
+    def withWar(implicit bf:BattleField) = {
+      
 
       val creator = profile("foo")
       val opponent = profile("bar")
@@ -131,15 +126,14 @@ class BattleFieldSpec extends Specification with Helpers {
 
     }
 
-    "create new war" in new WithApplication {
-      val (bf, finder, _, _) = withWar
+    "create new war" in new BattleField {
+      val (finder, _, _) = withWar
       finder.future must beAnInstanceOf[models.War].await
     }
 
-    "have creator as winner" in new WithApplication {
-      implicit val bf = battleField
-
-      implicit val system = bf.system
+    "have creator as winner" in new BattleField{
+      
+           
 
 
       import models.Schema
@@ -150,6 +144,7 @@ class BattleFieldSpec extends Specification with Helpers {
       val creator = profile("foo")
       val opponent = profile("bar")
 
+     
 
       val creatorRef = (bf.state get "foo" get).asInstanceOf[ConnectionRef]
       val opponentRef = (bf.state get "bar" get).asInstanceOf[ConnectionRef]
@@ -165,7 +160,7 @@ class BattleFieldSpec extends Specification with Helpers {
 
       val ref = TestActorRef(WarBattle(war, creator.id, opponent.id, creatorRef.path, opponentRef.path))
 
-
+      block(2)
       ref ! WarAction("foo", war.id.get, CreateBoard(UUID.randomUUID().toString, "foo", "#pinterestwars", war.category, "http://google.com"))
 
 
@@ -190,8 +185,8 @@ class BattleFieldSpec extends Specification with Helpers {
 
     }
 
-    "create pending rematch request" in new WithApplication {
-      implicit val bf = battleField
+    "create pending rematch request" in new Battle {
+     
 
 
       val creator = profile("foo")
@@ -206,7 +201,7 @@ class BattleFieldSpec extends Specification with Helpers {
 
 
     }
-    "create pending invite request" in new WithApplication {
+    "create pending invite request" in new BattleField {
       implicit val bf = battleField
 
 

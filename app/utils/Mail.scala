@@ -1,5 +1,8 @@
 package utils
 
+import scala.util.{Failure, Success}
+import play.api.Logger
+
 /**
  * Created by IntelliJ IDEA.
  * User: Keyston
@@ -21,9 +24,12 @@ object Mail {
     future {
       mail.setSubject(subject)
       mail.addRecipient(to)
-      mail.addFrom("pinwar@no-reply.com")
+      mail.addFrom("BattleBot <no-reply@pinterestwar.com>")
       mail.sendHtml(textHtml)
     }
+  } onComplete {
+    case Success(c) => Logger.info(s"Email send = $c")
+    case Failure(e) => Logger.error("Couldn't send email", e)
   }
 
 }

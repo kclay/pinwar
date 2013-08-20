@@ -3,16 +3,14 @@ import akka.util.Timeout
 import com.rethinkscala.CurrentSchema
 import com.typesafe.config.ConfigFactory
 import org.specs2.execute.{Result, AsResult}
-import org.specs2.mutable.{After, Around}
+import org.specs2.mutable.Around
 import org.specs2.specification.Scope
 import play.api.Configuration
 import play.api.test._
 import play.api.test.FakeApplication
-import play.core.DevSettings
 import scala.concurrent._
 import scala.concurrent.duration._
-import org.specs2.specification.AllExpectations
-import utils.Cache
+
 
 /**
  * Created by IntelliJ IDEA.
@@ -38,15 +36,23 @@ trait Helpers {
   abstract class WithApplication(val app: FakeApplication = new TestApplication) extends Around with Scope {
     implicit def implicitApp = app
 
+
+    def before: Unit = {}
+
+    def after: Unit = {}
+
     override def around[T: AsResult](t: => T): Result = {
 
 
       play.api.test.Helpers.running(app)(AsResult.effectively({
-        Cache(app)
+        before
+
         CurrentSchema(Some(TestSchema))
 
 
-        t
+        val value = t
+        after
+        value
       }))
     }
   }
@@ -58,7 +64,7 @@ trait Helpers {
     implicit def implicitPort: Port = port
 
     override def around[T: AsResult](t: => T): Result = Helpers.running(TestServer(port, app))(AsResult.effectively({
-      Cache(app)
+
       CurrentSchema(Some(TestSchema))
       t
     }))

@@ -6,9 +6,13 @@ import play.api.templates.Html
 import models.Stats
 import actions.WithCors
 import models.Schema._
+import play.api.cache.Cached
 
 
 object Application extends Controller with WithCors {
+
+  import play.api.Play.current
+  import play.api.Play.configuration
 
   def index = Action {
     Logger.debug("Testing")
@@ -32,31 +36,34 @@ object Application extends Controller with WithCors {
     Ok("ok")
   }
 
-  def template(name: String) = AllowCors {
-    implicit request =>
+  def template(name: String) = Cached("template") {
+    AllowCors {
+      implicit request =>
 
-      var content = ""
-      val templateName = "views.html.ajax." + name
-      try {
-        val c = Class.forName(templateName + "$")
-        val tpl = c.getField("MODULE$").get(c).asInstanceOf[ {def apply()(implicit request: play.api.mvc.RequestHeader): Html}]
-        content = tpl().toString()
+        implicit val conf = configuration
+        var content = ""
+        val templateName = "views.html.ajax." + name
+        try {
+          val c = Class.forName(templateName + "$")
+          val tpl = c.getField("MODULE$").get(c).asInstanceOf[ {def apply()(implicit request: play.api.mvc.RequestHeader,conf:Configuration): Html}]
+          content = tpl().toString()
 
-      } catch {
-        case e: Exception =>
-          Logger.debug(e.getMessage)
+        } catch {
+          case e: Exception =>
+            Logger.debug(e.getMessage)
 
-      }
-      Ok(content).withHeaders(
-        "Access-Control-Allow-Origin" -> "*",
-        "Access-Control-Allow-Methods" -> "GET, POST, PUT, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers" -> "Content-Type, X-Requested-With, Accept",
-        // cache access control response for one day
-        "Access-Control-Max-Age" -> (60 * 60 * 24).toString
+        }
+        Ok(content).withHeaders(
+          "Access-Control-Allow-Origin" -> "*",
+          "Access-Control-Allow-Methods" -> "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers" -> "Content-Type, X-Requested-With, Accept"
+          // cache access control response for one day
+          //"Access-Control-Max-Age" -> (60 * 60 * 24).toString
 
-      ).as("text/html")
+        ).as("text/html")
 
 
+    }
   }
 
 }

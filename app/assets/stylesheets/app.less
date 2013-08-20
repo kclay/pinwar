@@ -311,7 +311,7 @@
     position: relative;
     margin: 0 auto;
 
-    height: @height - @borderHeight - 2px;
+    height: @height - @borderHeight - 3px;
     line-height: 17px;
 
     span {
@@ -498,7 +498,7 @@
 
   #overview, #war {
     .right {
-      margin-top: (@height - 7) * -1;
+      margin-top: (@height - 10) * -1;
       .rank {
         right: @profileImageWidth + @profileImageMargin;
       }
@@ -515,9 +515,13 @@
     color: white;
     clear: both;
     text-align: center;
+
     span {
       display: inline-block;
       margin-right: 10px;
+      &.standout {
+        color: @green;
+      }
     }
     .inner {
       text-align: center;
@@ -733,8 +737,65 @@ body.feedback {
     z-index: 20;
     text-indent: -99999px;
   }
+  #rules {
+    div.l, div.r {
+      width: 40%;
+
+    }
+    .close {
+      cursor: pointer;
+      background: @red;
+      color: white;
+      font-size: 16px;
+      strong {
+        font-size: 25px;
+      }
+      display: block;
+      padding: 5px;
+      position: absolute;
+      right: 25px;
+      top: 0px;
+    }
+    table {
+      width: 100%;
+    }
+    h3 {
+      color: white;
+    }
+    tr {
+      text-align: left;
+    }
+    span {
+      color: @green;
+      font-weight: bold;
+      font-size: 21px;
+      display: inline;
+      text-align: right;
+      float: right;
+      padding: 0px 20px;
+      margin-right: 0px;
+      &.label {
+
+        padding: 0px;
+        float: left;
+        text-align: left;
+        color: #bfbebe;
+      }
+
+    }
+    div.l {
+      float: left;
+    }
+    div.r {
+      float: right;
+    }
+  }
   #settings {
     padding-bottom: 5px;
+
+    td {
+      height: 50px;
+    }
 
     #save-settings {
       background: #00bf4d;
@@ -767,13 +828,13 @@ body.feedback {
       color: white;
 
     }
-    .l {
+    td.l {
       span {
         width: 250px;
         margin-right: 24px;
       }
     }
-    .r {
+    td.r {
       span {
         width: 147px;
         margin-right: 24px;
