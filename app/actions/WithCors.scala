@@ -1,7 +1,8 @@
 package actions
 
 import com.rethinkscala.net.Connection
-import play.api.mvc.{Action, Result, AnyContent, Request}
+import play.api.mvc._
+import play.api.libs.iteratee.Iteratee
 
 /**
  * Created by IntelliJ IDEA.
@@ -10,6 +11,32 @@ import play.api.mvc.{Action, Result, AnyContent, Request}
  * Time: 1:46 PM 
  */
 trait WithCors {
+
+  import play.api.http.HeaderNames
+  /*
+  case class AllowCors(origin: String)(action: EssentialAction) extends EssentialAction {
+
+    def apply(request: RequestHeader): Iteratee[Array[Byte], SimpleResult] = {
+      val ok = (origin match {
+        case "*" => true
+        case _ => request.headers.get(HeaderNames.ORIGIN).map(_.equals(origin)).getOrElse(false)
+      })
+      if(ok)action(request).
+
+    }
+  }
+
+  object AllowCors {
+
+    def apply(origin: String)(action: EssentialAction) {
+
+    }
+  }
+
+  def AllowCors(origin: String) = {
+
+  }   */
+
   def AllowCors(f: Request[AnyContent] => Result) = Action {
     implicit request =>
       f(request).withHeaders(

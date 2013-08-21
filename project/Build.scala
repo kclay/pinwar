@@ -18,9 +18,9 @@ object ApplicationBuild extends Build {
 
     Resolver.file("LocalIvy", file(Path.userHome +
       File.separator + ".ivy2" + File.separator +
-      "local"))(Resolver.ivyStylePatterns)
-    //"Keyston Repository Releases" at "http://kclay.github.io/releases",
-    //"Keyston Repository Snapshots" at "http://kclay.github.io/snapshots"
+      "local"))(Resolver.ivyStylePatterns),
+    "Keyston Repository Releases" at "http://kclay.github.io/releases",
+    "Keyston Repository Snapshots" at "http://kclay.github.io/snapshots"
   )
 
   val akkaVersion = "2.2.0"

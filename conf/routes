@@ -4,7 +4,7 @@
 
 # Home page
 GET         /                                  controllers.Application.index
-GET         /stat                                  controllers.Application.stat
+GET         /stat                              controllers.Application.stat
 #GET      /battle                                            controllers.Application.battle(username:String?="keyston")
 GET         /template/:name/tpl.html           controllers.Application.template(name:String)
 
@@ -20,4 +20,6 @@ GET         /war/:profileId/:fromInvite        controllers.War.index(profileId:S
 
 # Map static resources from the /public folder to the /assets URL path
 GET         /assets/*file                      controllers.Assets.at(path="/public", file)
+
+POST        /report-error/:profile             controllers.Application.reportError(profile:Profile)
 
