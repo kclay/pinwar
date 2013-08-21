@@ -25,6 +25,7 @@ import battle.RematchContext
 import play.api.libs.json.JsObject
 import models.Profile
 import battle.Disconnect
+import com.rethinkscala.Implicits._
 
 
 /**
@@ -107,12 +108,12 @@ object War extends Controller with WithCors {
     Mail(email, "You have been challenged", views.html.email.challenge(from, token).body)
   }
 
-  def newSignup(profile: Profile, token: Option[String] = None)(implicit rh: RequestHeader): Result = {
+  def newSignup(profile: Profile, token: Option[String] = None)(implicit rh: RequestHeader): SimpleResult = {
 
     val p = token.map {
       t => {
         // TODO ensure data is removed
-        val email = Cache.getAs[String](t)
+        val email = caches.invites(t)
 
         email.map(e => profile.copy(email = e))
       }
@@ -123,7 +124,7 @@ object War extends Controller with WithCors {
       case Right(r) => if (r.inserted == 1) {
 
 
-        ((signups insert Signup(profileId = profile.id, activated = token.isDefined) withResults) run match {
+        ((signups insert Signup(profile.id, token.isDefined) withResults) run match {
           case Right(r) => if (token.isEmpty) r.returnedValue[Signup] map (sendSignupEmail(_, profile))
           else Some(Ok(""))
 
@@ -143,27 +144,25 @@ object War extends Controller with WithCors {
     implicit request =>
       profileForm.bindFromRequest fold(
         hasErrors => BadRequest("invalid"), {
-        case (profile, token) =>
-          (profiles.get(profile.id) run match {
+        case (profile, token) => {
+          val already = profiles.filter(v => v \ "id" === profile.id or v \ "id" === profile.email)
+          already(0) run match {
             case Left(e: RethinkNoResultsError) => newSignup(profile, token)
             case Left(e) => BadRequest("Unknown Error")
-            case Right(r) => (signups filter Map("profileId" -> profile.id)).as[Signup] match {
+            case Right(p) => if (p.id == profile.id) {
+              (signups get profile.id run).fold(x => BadRequest(""), s => sendSignupEmail(s, profile))
+            } else BadRequest("Account already registered")
+          }
+        }
 
-              case Left(e) => BadRequest("")
-              case Right(s) => sendSignupEmail(s.head, profile)
-
-
-            }
-          })
-
-
-      }
-
-        )
+      })
 
 
   }
 
+
+  val signupEvent = Json.obj("event" -> "signup",
+    "data" -> Json.obj())
 
   def index(profileId: String, fromInvite: Boolean) = WebSocket.using[JsValue] {
     implicit request =>
@@ -188,7 +187,13 @@ object War extends Controller with WithCors {
           js match {
             case Extractor.HandleInvite(a) => {
               if (profile.isEmpty) {
-                newSignup(a.profile, Some(a.token))
+                val result = newSignup(a.profile, Some(a.token))
+
+                result.header.status match {
+                  case OK => watchedChannel push signupEvent
+                  case _ =>
+                }
+
                 profile = Some(a.profile)
               }
 

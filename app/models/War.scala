@@ -1,6 +1,6 @@
 package models
 
-import com.rethinkscala.net.Document
+import com.rethinkscala.Document
 import Schema._
 import com.fasterxml.jackson.annotation._
 import com.rethinkscala.ast._
@@ -29,9 +29,7 @@ case class Profile(id: String, username: String, name: String, email: String, av
   @JsonIgnore
   lazy val lastName = name.split(" ").drop(1).mkString(" ")
 
-  private def _rank(s: Sequence) = s.order("points" desc).indexesOf((v: Var) => (v \ "id").eq(id: Literal)).as[Long].right.toOption.map {
-    x => x.headOption.map(_.toInt + 1)
-  }.flatten getOrElse (0)
+  private def _rank(s: Sequence[Stats]) = s.order("points" desc).indexesOf((v: Var) => (v \ "id").eq(id: Literal))(0).toOpt.map(_.toInt + 1) getOrElse (0)
 
 
   @JsonIgnore
@@ -98,7 +96,7 @@ object War {
 
 
 
-    War(None, creatorId, opponentId, Rules(points = BattleConfig.pointsToWin(10000), category = FoodDrink)) save match {
+    War(None, creatorId, opponentId, Rules(points = BattleConfig.pointsToWin(10000), category = category)) save match {
       case Left(e) => None
       case Right(r) => r.returnedValue[War]
     }
@@ -278,10 +276,10 @@ case class Like(id: String, warId: String, profileId: String, var points: Int) e
 
 case class Image(name: String, url: String, width: Int, height: Int)
 
-case class Signup(id: Option[String] = None, profileId: String, activated: Boolean = false) extends Document
+case class Signup(id: String, activated: Boolean = false) extends Document
 
 object Signup {
-  def apply(profile: Profile): Signup = Signup(profileId = profile.id)
+  def apply(profile: Profile): Signup = Signup(id = profile.id)
 }
 
 
