@@ -77,6 +77,7 @@ object War extends Controller with WithCors {
         var jsp = profileWrites.writes(p).asInstanceOf[JsObject]
         jsp = jsp +("rank", Json.toJson(p.rank))
         jsp = jsp +("stats", Json.toJson(p.stats))
+
         Ok(jsp)
     }
   }
@@ -150,7 +151,10 @@ object War extends Controller with WithCors {
             case Left(e: RethinkNoResultsError) => newSignup(profile, token)
             case Left(e) => BadRequest("Unknown Error")
             case Right(p) => if (p.id == profile.id) {
-              (signups get profile.id run).fold(x => BadRequest(""), s => sendSignupEmail(s, profile))
+              (signups get profile.id run).fold(x => BadRequest(""), s => {
+                if (s.activated) Ok("Looks like you already signed up") else sendSignupEmail(s, profile)
+
+              })
             } else BadRequest("Account already registered")
           }
         }
