@@ -2,6 +2,7 @@
 @import "_mixins";
 @import "_vars";
 @import "_common";
+@import "_modal";
 
 .font {
   font-family: 'Montserrat', sans-serif;
@@ -227,24 +228,24 @@
     font-size: @textSmall;
     color: white;
 
-    &#sound {
-      width: 40px;
-      padding: 9px;
-      a {
-        display: block;
-        width: 17px;
-        height: 17px;
-        text-indent: -99999px;
-        margin: 0 auto;
-        background: url('../images/icon-sound.png') no-repeat;
-      }
-    }
-
     padding-right: 50px;
     a, a:hover, a:visited, a:active {
       color: white;
       text-decoration: underline;
       font-size: @textSmall;
+    }
+  }
+  #report-bug {
+    width: 17px;
+    padding: 9px;
+    display: inline-block;
+    a {
+      display: block;
+      width: 17px;
+      height: 17px;
+      text-indent: -99999px;
+      margin: 0 auto;
+      background: url('../images/icon-bug.png') no-repeat;
     }
   }
 
@@ -324,6 +325,8 @@
       display: inline-block;
       padding-top: 10px;
       font-weight: bold;
+      width: 100%;
+      text-align: center;
       color: #453c44;
     }
     .category {
@@ -896,3 +899,66 @@ body.won, body.lost {
   }
 
 }
+
+#bug-reporter {
+  .pinwar-modal-fade;
+  header {
+    padding: 1em 10px;
+    /* background: -moz-linear-gradient(top, #f2f2f2 0%, #fdfdfd 100%);
+     background: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #f2f2f2), color-stop(100%, #fdfdfd));
+     background: -webkit-linear-gradient(top, #f2f2f2 0%, #fdfdfd 100%);
+     background: -o-linear-gradient(top, #f2f2f2 0%, #fdfdfd 100%);
+     background: -ms-linear-gradient(top, #f2f2f2 0%, #fdfdfd 100%);
+     background: linear-gradient(to bottom, #f2f2f2 0%, #fdfdfd 100%);
+     padding: 10px;     */
+    color: @red;
+    .font;
+    font-weight: bold;
+    font-size: 28px;
+    span {
+      font-size: 60px;
+
+    }
+  }
+  .pinwar-modal-content {
+    padding: 23px 35px;
+    background: #ffffff;
+
+    p {
+      margin-top: 0px;
+      color: #383838;
+      font-size: 22px;
+      margin-bottom: 15px;
+    }
+    input[type="text"], textarea {
+      -webkit-border-radius: 5px;
+      border-radius: 5px;
+      border: #d6d3ce solid 1px;
+      font-size: 20px;
+      width: 95%;
+      padding: 10px;
+      margin-bottom: 10px;
+      background: -moz-linear-gradient(top, #f0f0f0 0%, #f1f1f1 14%, #f0f0f0 51%, #f2f2f2 84%, #f5f5f5 100%);
+      background: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #f0f0f0), color-stop(14%, #f1f1f1), color-stop(51%, #f0f0f0), color-stop(84%, #f2f2f2), color-stop(100%, #f5f5f5));
+      background: -webkit-linear-gradient(top, #f0f0f0 0%, #f1f1f1 14%, #f0f0f0 51%, #f2f2f2 84%, #f5f5f5 100%);
+      background: -o-linear-gradient(top, #f0f0f0 0%, #f1f1f1 14%, #f0f0f0 51%, #f2f2f2 84%, #f5f5f5 100%);
+      background: -ms-linear-gradient(top, #f0f0f0 0%, #f1f1f1 14%, #f0f0f0 51%, #f2f2f2 84%, #f5f5f5 100%);
+      background: linear-gradient(to bottom, #f0f0f0 0%, #f1f1f1 14%, #f0f0f0 51%, #f2f2f2 84%, #f5f5f5 100%);
+    }
+    textarea {
+      height: 252px;
+    }
+
+    input[type="submit"] {
+      border: none;
+      float: right;
+      padding: 15px 42px;
+      background: @red;
+      color: #ffffff;
+      font-size: 22px;
+      .font;
+      font-weight: bold;
+    }
+  }
+}
+

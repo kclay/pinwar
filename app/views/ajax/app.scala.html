@@ -1,8 +1,8 @@
-@(implicit r: RequestHeader,conf: play.api.Configuration)
+@(implicit r: RequestHeader, conf: play.api.Configuration)
 
-@points(action:String)=@{
-    conf.getInt(s"points.${action}").get
-}
+    @points(action: String) = @{
+        conf.getInt(s"points.${action}").get
+    }
     @radio(name: String) = {
         <input id="@name-on" class="radio" name="@name" value="true" type="radio" />
         <label for="@name-on" class="radio-label">On</label>
@@ -33,81 +33,81 @@
 </script>
 
 <script type="text/template" id="templateRules">
-      <div id="rules">
-          <a class="close">
-              <strong>X</strong> Close
-          </a>
-          <div class="l">
-          <h3>Here's how to play</h3>
-              <table>
+    <div id="rules">
+        <a class="close">
+            <strong>X</strong> Close
+        </a>
+        <div class="l">
+            <h3>Here's how to play</h3>
+            <table>
 
 
-                  <tr>
-                      <td class="l">
-                          <span class="label">Use the Hashtag:</span>
-                      </td>
-                      <td class="r" >
-                         <span id="hashtag">DIY Projects</span>
-                      </td>
-
-                  </tr>
-                  <tr>
-                      <td class="l">
-                          <span class="label">Add in Category:</span>
-                      </td>
-                      <td class="r">
-                           <span id="category"></span>
-                      </td>
-
-                  </tr>
-              </table>
-          </div>
-
-          <div class="r">
-              <h3>Points breakdown</h3>
-              <table>
-
-
-                  <tr>
-                      <td class="l">
-                          <span class="label">Board</span>
-
-                           <span>@points("board") pts</span>
+                <tr>
+                    <td class="l">
+                        <span class="label">Use the Hashtag:</span>
                     </td>
-                      <td class="r">
-                          <span class="label">Pin</span>
+                    <td class="r" >
+                        <span id="hashtag">DIY Projects</span>
+                    </td>
 
-                          <span>@points("pin") pts</span>
-                      </td>
+                </tr>
+                <tr>
+                    <td class="l">
+                        <span class="label">Add in Category:</span>
+                    </td>
+                    <td class="r">
+                        <span id="category"></span>
+                    </td>
 
-                  </tr>
+                </tr>
+            </table>
+        </div>
 
-                  <tr>
-                      <td class="l">
-                          <span class="label">RePin</span>
-
-                          <span>@points("repin") pts</span>
-                      </td>
-                      <td class="r">
-                          <span class="label">Comment</span>
-
-                          <span>@points("comment") pts</span>
-                      </td>
-
-                  </tr>
-                  <tr>
-                      <td class="l">
-                          <span class="label">Like</span>
-
-                          <span>@points("like") pts</span>
-                      </td>
+        <div class="r">
+            <h3>Points breakdown</h3>
+            <table>
 
 
-                  </tr>
+                <tr>
+                    <td class="l">
+                        <span class="label">Board</span>
 
-              </table>
-          </div>
-      </div>
+                        <span>@points("board") pts</span>
+                    </td>
+                    <td class="r">
+                        <span class="label">Pin</span>
+
+                        <span>@points("pin") pts</span>
+                    </td>
+
+                </tr>
+
+                <tr>
+                    <td class="l">
+                        <span class="label">RePin</span>
+
+                        <span>@points("repin") pts</span>
+                    </td>
+                    <td class="r">
+                        <span class="label">Comment</span>
+
+                        <span>@points("comment") pts</span>
+                    </td>
+
+                </tr>
+                <tr>
+                    <td class="l">
+                        <span class="label">Like</span>
+
+                        <span>@points("like") pts</span>
+                    </td>
+
+
+                </tr>
+
+            </table>
+        </div>
+    </div>
 
 </script>
 <script type="text/template" id="templateSettings">
@@ -259,7 +259,7 @@
 
                             <form>
                                 <input type="text" placeholder="Enter your Email to Get Started"/>
-                                <input type="submit" value="Start a Battle"/>
+                                <input type="submit" value="Verify Email to Start"/>
                             </form>
                         </div>
                     </div>
@@ -296,6 +296,9 @@
 
             <div class="details">
                 or you can <a href="#" id="find">Pick A random opponent</a>
+                <div id="report-bug" >
+                    <a href="#bug-reporter">Bug Report</a>
+                </div>
             </div>
         </div>
 
@@ -322,8 +325,8 @@
                 @war("right", "images/avatar2.jpg")
             </div>
 
-            <div id="sound" class="details">
-                <a href="#">toggle</a>
+            <div id="report-bug" class="details">
+                <a href="#bug-reporter">Bug Report</a>
             </div>
         </div>
     </div>
@@ -336,3 +339,28 @@
     </div>
 
 </div>
+
+<section id="bug-reporter" tabindex="-1"
+role="dialog" aria-labelledby="pinwar-modal-label" aria-hidden="true">
+
+    <div class="pinwar-modal-inner">
+        <header id="pinwar-modal-label"><img src="@asset("images/bug-header.png")"/> <span>Oh No!</span>
+            Looks like you found a bug.</header>
+        <div class="pinwar-modal-content">
+
+                <p>Please give us as much detail as possible about what just
+                    happened.</p>
+                <form id="bug-reporter-form">
+                    <input type="text" placeholder="What just happened?" id="bug-title"/>
+                    <textarea id="bug-details"></textarea>
+                    <input type="submit" value="Submit this Bug" id="bug-reporter-submit"/>
+                </form>
+
+        </div>
+        <footer><!-- Footer --></footer>
+
+    </div>
+
+    <a href="#!" class="pinwar-modal-close" title="Close this modal" data-close="Close"
+    data-dismiss="modal">×</a>
+</section>

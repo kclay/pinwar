@@ -42,7 +42,7 @@ private class PinWarModule extends SimpleModule("PinWarModule") {
 object Schema extends Schema("test") {
 
 
-  def apply[T <: com.rethinkscala.net.Document](implicit mf: Manifest[T]): Table[T] = CurrentSchema.getOrElse(thisSchema).get[T].get
+  def apply[T <: com.rethinkscala.Document](implicit mf: Manifest[T]): Table[T] = CurrentSchema.getOrElse(thisSchema).get[T].get
 }
 
 

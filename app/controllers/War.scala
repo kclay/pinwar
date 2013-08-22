@@ -8,19 +8,24 @@ import akka.pattern.ask
 import akka.util.Timeout
 import akka.actor._
 import battle._
-import models.{Fetch, Signup, Profile}
+import models.{Fetch, Signup}
 import play.api.data._
 import play.api.data.Forms._
 
 import play.api.Play.current
-import utils.Mail
+import utils.{WatchedChannel, Mail}
 import actions.WithCors
-import play.api.cache.Cache
+import play.api.cache.{Cached, Cache}
 
 
+import battle.Connect
 import scala.Some
 import com.rethinkscala.net.RethinkNoResultsError
+import battle.RematchContext
 import play.api.libs.json.JsObject
+import models.Profile
+import battle.Disconnect
+import com.rethinkscala.Implicits._
 
 
 /**
@@ -66,12 +71,15 @@ object War extends Controller with WithCors {
   )
 
 
-  def player(p: Profile) = AllowCors {
-    implicit request =>
-      var jsp = profileWrites.writes(p).asInstanceOf[JsObject]
-      jsp = jsp +("rank", Json.toJson(p.rank))
-      jsp = jsp +("stats", Json.toJson(p.stats))
-      Ok(jsp)
+  def player(p: Profile) = Cached(s"player-${p.id}") {
+    AllowCors {
+      implicit request =>
+        var jsp = profileWrites.writes(p).asInstanceOf[JsObject]
+        jsp = jsp +("rank", Json.toJson(p.rank))
+        jsp = jsp +("stats", Json.toJson(p.stats))
+
+        Ok(jsp)
+    }
   }
 
   def confirm(token: String) = AllowCors {
@@ -106,7 +114,7 @@ object War extends Controller with WithCors {
     val p = token.map {
       t => {
         // TODO ensure data is removed
-        val email = Cache.getAs[String](t)
+        val email = caches.invites(t)
 
         email.map(e => profile.copy(email = e))
       }
@@ -117,7 +125,7 @@ object War extends Controller with WithCors {
       case Right(r) => if (r.inserted == 1) {
 
 
-        ((signups insert Signup(profileId = profile.id, activated = token.isDefined) withResults) run match {
+        ((signups insert Signup(profile.id, token.isDefined) withResults) run match {
           case Right(r) => if (token.isEmpty) r.returnedValue[Signup] map (sendSignupEmail(_, profile))
           else Some(Ok(""))
 
@@ -137,27 +145,28 @@ object War extends Controller with WithCors {
     implicit request =>
       profileForm.bindFromRequest fold(
         hasErrors => BadRequest("invalid"), {
-        case (profile, token) =>
-          (profiles.get(profile.id) run match {
+        case (profile, token) => {
+          val already = profiles.filter(v => v \ "id" === profile.id or v \ "id" === profile.email)
+          already(0) run match {
             case Left(e: RethinkNoResultsError) => newSignup(profile, token)
             case Left(e) => BadRequest("Unknown Error")
-            case Right(r) => (signups filter Map("profileId" -> profile.id)).as[Signup] match {
+            case Right(p) => if (p.id == profile.id) {
+              (signups get profile.id run).fold(x => BadRequest(""), s => {
+                if (s.activated) Ok("Looks like you already signed up") else sendSignupEmail(s, profile)
 
-              case Left(e) => BadRequest("")
-              case Right(s) => sendSignupEmail(s.head, profile)
+              })
+            } else BadRequest("Account already registered")
+          }
+        }
 
-
-            }
-          })
-
-
-      }
-
-        )
+      })
 
 
   }
 
+
+  val signupEvent = Json.obj("event" -> "signup",
+    "data" -> Json.obj())
 
   def index(profileId: String, fromInvite: Boolean) = WebSocket.using[JsValue] {
     implicit request =>
@@ -168,19 +177,27 @@ object War extends Controller with WithCors {
 
       val (out, channel) = Concurrent.broadcast[JsValue]
 
-
+      val watchedChannel = new WatchedChannel(channel, ctx.system)
 
       var profile = Fetch.profile(profileId)
 
 
-      master ! Connect(profileId, channel, fromInvite)
+      master ! Connect(profileId, watchedChannel, fromInvite)
+
+
       val in = Iteratee.foreach[JsValue] {
         js =>
           log info (js.toString())
           js match {
             case Extractor.HandleInvite(a) => {
               if (profile.isEmpty) {
-                newSignup(a.profile, Some(a.token))
+                val result = newSignup(a.profile, Some(a.token))
+
+                result.header.status match {
+                  case OK => watchedChannel push signupEvent
+                  case _ =>
+                }
+
                 profile = Some(a.profile)
               }
 
@@ -191,7 +208,7 @@ object War extends Controller with WithCors {
                   caches.invites - a.token
                   master ! a
                 }
-                case _ => channel.push(withError("It seems that your challenge request has expired"))
+                case _ => watchedChannel.push(withError("It seems that your challenge request has expired"))
 
               }
 
@@ -203,7 +220,7 @@ object War extends Controller with WithCors {
                 case Success(w: models.War) =>
                 case Failure(e) => {
                   println(s"Find Failure ${e.getMessage}")
-                  channel.push(e)
+                  watchedChannel.push(e)
                 }
                 case _ =>
               }
@@ -223,12 +240,12 @@ object War extends Controller with WithCors {
 
                 }
 
-                channel push (feedback)
+                watchedChannel push (feedback)
               }
               case Failure(e) => {
 
                 log error("Invite Failure", e)
-                channel push (Option(e.getCause).getOrElse(e))
+                watchedChannel push (Option(e.getCause).getOrElse(e))
               }
               // TODO add auto battle creation if user is currently on the site
 
@@ -248,16 +265,16 @@ object War extends Controller with WithCors {
 
 
 
-                channel push (withFeedback(s"A Challenge request has been sent out to ${c.profile.name}"))
+                watchedChannel push (withFeedback(s"A Challenge request has been sent out to ${c.profile.name}"))
               }
-              case _ => channel push withError("Unable to send a rematch request")
+              case _ => watchedChannel push withError("Unable to send a rematch request")
 
             }
 
 
             case x: Any => {
               log error (s"Received malformed json ${js.toString}")
-              channel push withError("Malformed request, no points awarded")
+              watchedChannel push withError("Malformed request, no points awarded")
             }
 
 
@@ -265,7 +282,10 @@ object War extends Controller with WithCors {
 
 
       } map {
-        _ => master ! Disconnect(profileId)
+        _ => {
+          master ! Disconnect(profileId)
+          watchedChannel.done
+        }
       }
 
       (in, out &> Concurrent.buffer(100))
