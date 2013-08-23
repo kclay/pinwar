@@ -152,7 +152,7 @@ object War extends Controller with WithCors {
             case Left(e) => BadRequest("Unknown Error")
             case Right(p) => if (p.id == profile.id) {
               (signups get profile.id run).fold(x => BadRequest(""), s => {
-                if (s.activated) Ok("Looks like you already signed up") else sendSignupEmail(s, profile)
+                if (s.activated) Ok("activated") else sendSignupEmail(s, profile)
 
               })
             } else BadRequest("Account already registered")
