@@ -15,6 +15,8 @@ import scala.collection.immutable
  */
 
 
+case object ActiveConnections
+
 object Connection extends ActorCreator {
   def apply(profileId: String)(implicit system: ActorSystem) = actorFor(profileId)
 
@@ -56,6 +58,7 @@ object Connections extends ActorCreator {
 
 class Connections(ctx: BattleField) extends Actor {
   def receive = {
+    case ActiveConnections => sender ! context.children.size
     case Connect(profileId, channel, fromInvite) => {
 
       val connection = context.actorOf(Props(classOf[Connection], channel), profileId)

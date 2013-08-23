@@ -142,11 +142,6 @@ case class Trench(scope: BattleField) extends Actor with ActorLogging {
       }
       sender ! found
 
-
-
-
-
-
       for {
 
         (finder, profile) <- requester
