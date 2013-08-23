@@ -1,16 +1,18 @@
 package battle
 
-import models.{CacheStore, War, Profile}
+import models.{CacheStore, War}
 import akka.actor._
 import scala.concurrent._
 import akka.util.Timeout
 import scala.concurrent.duration._
 import play.api.libs.json.JsValue
 import scala.collection.mutable
-import scala.Some
 import akka.pattern.ask
-import akka.routing.FromConfig
-import utils.ActorCreator
+import utils.{TestAble, ActorCreator}
+import play.api.Mode._
+import scala.Some
+import akka.actor.Terminated
+import models.Profile
 
 
 /**
@@ -42,11 +44,12 @@ case class Seen(list: Seq[String])
 object Finders extends ActorCreator {
 
 
-  def props(bf: BattleField) = Props(classOf[Finders], bf.trench, bf.findTimeout, bf.caches)
+  def props(bf: BattleField) = Props(classOf[Finders], bf.trench, bf.findTimeout, bf.caches, bf.currentMode)
 
 }
 
-case class Finders(trench: ActorRef, timeout: Timeout, cache: CacheStore) extends Actor with ActorLogging {
+case class Finders(trench: ActorRef, timeout: Timeout, cache: CacheStore, mode: play.api.Mode.Mode) extends Actor with ActorLogging {
+
 
   private val pending = mutable.ArrayBuffer.empty[ActorRef]
 
@@ -57,6 +60,7 @@ case class Finders(trench: ActorRef, timeout: Timeout, cache: CacheStore) extend
   def newFinder(profileId: String) = {
     val profile = cache.profiles get profileId
     val finder = context.actorOf(Props(classOf[Finder], trench, profile, timeout), profileId)
+   // val finder = Finder(trench, profile, timeout, mode)
     context.watch(finder)
 
     pending += finder
@@ -104,15 +108,17 @@ case class Finders(trench: ActorRef, timeout: Timeout, cache: CacheStore) extend
 case class FinderTimeout(creatorId: String) extends Exception(s"Wasn't able to find any opponents for ${creatorId}")
 
 
-/*
 object Finder extends ActorCreator {
-  def apply(trench: ActorRef, profile: Profile, timeout: Timeout, currentMode: M)(implicit system: ActorSystem) =
-    apply(Props(classOf[Finder], trench, profile, timeout), currentMode, profile.id)
+
+
+  def apply(trench: ActorRef, profile: Profile, timeout: Timeout, mode: M)(implicit system: ActorSystem): ActorRef = apply(Props(classOf[Finder], trench, profile, timeout), mode, s"finders/${profile.id}")
+
 
   def props(bf: BattleField) = ???
-} */
+}
 
-case class Finder(trench: ActorRef, profile: Profile, timeout: Timeout) extends Actor {
+
+case class Finder(trench: ActorRef, profile: Profile, timeout: Timeout) extends Actor with TestAble {
 
   import utils.Serialization.Writes._
 

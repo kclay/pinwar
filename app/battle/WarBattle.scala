@@ -27,7 +27,7 @@ class WarBattle(war: War, creatorId: String, opponentId: String, creator: ActorS
   import utils.Serialization.Writes.{pointsWrites, throwable2Json, appError2Json, wonWrites, warAcceptedWrites, event2JsValue}
 
 
-  import BattleField.instance.caches
+  import models.CacheStore.{instance => caches}
 
 
   val channels = Seq(creator, opponent)

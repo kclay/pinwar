@@ -50,6 +50,10 @@ object Fetch {
 }
 
 
+object CacheStore {
+  val instance = new CacheStore
+}
+
 class CacheStore {
 
 

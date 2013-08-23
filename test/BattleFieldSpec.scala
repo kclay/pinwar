@@ -9,6 +9,7 @@ import models.War
 import org.specs2.mutable.Specification
 import play.api.libs.iteratee.Concurrent
 import play.api.libs.json.JsValue
+import utils.TestKit
 
 
 /**
@@ -26,7 +27,11 @@ class BattleFieldSpec extends Specification with Helpers {
   import akka.pattern.ask
 
   abstract class Battle extends WithApplication {
-    private lazy val _bf = new BattleField
+    private lazy val _bf = {
+      val b = new BattleField
+      b.master
+      b
+    }
 
     implicit def bf = _bf
 
@@ -38,7 +43,7 @@ class BattleFieldSpec extends Specification with Helpers {
     }
   }
 
-  type ConnectionRef = TestActorRef[Connection]
+  type ConnectionRef = ChannelContext
   sequential
 
   class BattleField extends battle.BattleField {
@@ -102,10 +107,9 @@ class BattleFieldSpec extends Specification with Helpers {
       val ref = withValue(Finders.identify("foo"), 5)
       ref ! ResolveChallenge(opponent.id, false)
 
-      val alreadySeen = withValue((ref ? SeenWho).mapTo[Seen], 5)
+      val finder = TestKit.last[Finder]
 
-
-      alreadySeen.list must contain(opponent.id)
+      finder seen (opponent.id) must beTrue
 
 
     }
@@ -119,16 +123,21 @@ class BattleFieldSpec extends Specification with Helpers {
 
       bf.finders ! Find("foo")
 
-      val ref = withValue(Finders.identify("foo").mapTo[TestActorRef[Finder]], 5)
 
-      ref.underlyingActor.resolve(opponent.id, true)
-      (ref.underlyingActor, creator, opponent)
+      val ref = withValue(Finders.identify("foo"), 5)
+      ref ! ResolveChallenge(opponent.id, true)
+      val finder = TestKit.last[Finder]
+      (finder, creator, opponent)
 
     }
 
     "create new war" in new Battle {
+
+
       val (finder, _, _) = withWar
-      finder.future must beAnInstanceOf[models.War].await
+
+      finder.future must beAnInstanceOf[models.War].await(2)
+
     }
 
     "have creator as winner" in new Battle {
@@ -140,11 +149,13 @@ class BattleFieldSpec extends Specification with Helpers {
 
 
       val creator = profile("foo")
+      val creatorRef = TestKit.last[Connection]
       val opponent = profile("bar")
+      val opponentRef = TestKit.last[Connection]
 
 
-      val creatorRef = (bf.state get "foo" get).asInstanceOf[ConnectionRef]
-      val opponentRef = (bf.state get "bar" get).asInstanceOf[ConnectionRef]
+      //val creatorRef = (bf.state get "foo" get).asInstanceOf[ConnectionRef]
+      // val opponentRef = (bf.state get "bar" get).asInstanceOf[ConnectionRef]
 
       val creatorStats = creator.stats
 
@@ -155,14 +166,15 @@ class BattleFieldSpec extends Specification with Helpers {
       val dur = Duration(5, SECONDS)
 
 
-      val ref = TestActorRef(WarBattle(war, creator.id, opponent.id, creatorRef.path, opponentRef.path))
+      val ref = TestActorRef(new WarBattle(war, creator.id, opponent.id, Connection("foo"), Connection("bar")))
 
       block(2)
       ref ! WarAction("foo", war.id.get, CreateBoard(UUID.randomUUID().toString, "foo", "#pinterestwars", war.category, "http://google.com", false))
 
 
 
-      (creatorRef.underlyingActor.lastMessage match {
+
+      (creatorRef.lastMessage match {
         case Some(j) => (j \ "data" \ "profileId").as[String]
         case _ => ""
       }) mustEqual ("foo")

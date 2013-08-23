@@ -100,7 +100,7 @@ class BattleField {
     type Pub = TrenchState
   }
 
-  lazy val caches = new CacheStore
+  lazy val caches = CacheStore.instance
   val timeoutThreshold = 5
   val findTimeout = Timeout((60 * 2) + timeoutThreshold, SECONDS)
 

@@ -4,7 +4,7 @@ import akka.actor._
 import play.api.libs.iteratee.Concurrent.Channel
 import play.api.libs.json.JsValue
 import akka.actor.Terminated
-import utils.ActorCreator
+import utils.{TestAble, ActorCreator}
 import scala.collection.immutable
 
 /**
@@ -16,7 +16,9 @@ import scala.collection.immutable
 
 
 object Connection extends ActorCreator {
-  def actorFor(profileId: String)(implicit system: ActorSystem) = system.actorSelection(s"/user/profiles/$profileId")
+  def apply(profileId: String)(implicit system: ActorSystem) = actorFor(profileId)
+
+  def actorFor(profileId: String)(implicit system: ActorSystem) = system.actorSelection(s"/user/connections/$profileId")
 
 
   def apply(bf: BattleField, channel: Channel[JsValue])(implicit system: ActorSystem): ActorRef = apply(Props(classOf[Connection], channel), bf.currentMode)
@@ -25,7 +27,7 @@ object Connection extends ActorCreator {
   def props(bf: BattleField) = Props[Connection]
 }
 
-case class Connection(channel: Channel[JsValue]) extends Actor with ActorLogging {
+case class Connection(channel: Channel[JsValue]) extends Actor with ActorLogging with TestAble {
 
   override def unhandled(message: Any) {
     super.unhandled(message)
@@ -56,7 +58,7 @@ class Connections(ctx: BattleField) extends Actor {
   def receive = {
     case Connect(profileId, channel, fromInvite) => {
 
-      val connection = Connection(ctx, channel)(context.system)
+      val connection = context.actorOf(Props(classOf[Connection], channel), profileId)
       context.watch(connection)
       ctx.trench ! AddUser(profileId, ChannelContext(connection.path, pending = fromInvite))
     }

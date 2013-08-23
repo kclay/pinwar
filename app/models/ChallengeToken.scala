@@ -1,6 +1,6 @@
 package models
 
-import com.rethinkscala.net.Document
+import com.rethinkscala.Document
 import akka.actor.{ActorSelection, ActorSystem}
 import battle.ResolveChallenge
 import models.Schema._
