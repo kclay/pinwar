@@ -7,6 +7,7 @@ import akka.util.Timeout
 import akka.pattern.ask
 import scala.concurrent.duration._
 import play.api.libs.json.JsValue
+import java.util.concurrent.atomic.AtomicReference
 
 
 /**
@@ -16,6 +17,12 @@ import play.api.libs.json.JsValue
  * Time: 7:34 PM 
  */
 
+
+sealed trait FinderState
+
+case object InFlight extends FinderState
+
+case object Waiting extends FinderState
 
 case class FinderTimeout(creatorId: String) extends Exception(s"Wasn't able to find any opponents for ${creatorId}")
 
@@ -37,6 +44,10 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
 
   val creatorId = profile.id
 
+  private[this] val finderState = new AtomicReference[FinderState](Waiting)
+
+
+  def state: FinderState = finderState.get()
 
   def destroy = {
     cleanup
@@ -86,6 +97,7 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
 
       ctx.trench :=+ opponentId
       // TODO Send email
+      finderState.set(InFlight)
       c ! (ChallengeRequest(ctx.challengeTokenFor(this), profile): JsValue)
 
     }
@@ -95,25 +107,25 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
 
     if (accepted) {
 
-     /* future onSuccess {
-        case war: War => {
-          val profiles = Seq(creatorId, opponentId)
-          val msg: JsValue = profiles.map(ctx.caches.profiles get _) match {
-            case Seq(c, o) => WarAccepted(c, o, war)
-          }
-          val ctxs = profiles.map(ctx.trench.get(_)).filter(_.isDefined)
-          if (ctxs.size != 2) {
-            // someone left
-            ctx.pendingFinders += this
+      /* future onSuccess {
+         case war: War => {
+           val profiles = Seq(creatorId, opponentId)
+           val msg: JsValue = profiles.map(ctx.caches.profiles get _) match {
+             case Seq(c, o) => WarAccepted(c, o, war)
+           }
+           val ctxs = profiles.map(ctx.trench.get(_)).filter(_.isDefined)
+           if (ctxs.size != 2) {
+             // someone left
+             ctx.pendingFinders += this
 
-          } else {
+           } else {
 
-            ctxs.flatten.foreach(_ ! msg)
-          }
+             ctxs.flatten.foreach(_ ! msg)
+           }
 
 
-        }
-      } */
+         }
+       } */
       future onFailure {
         case x: Throwable => println(x)
       }
@@ -130,7 +142,10 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
 
           request(opponentId)
         }
-        case _ => ctx.pendingFinders += this // re add to queue
+        case _ => {
+          ctx.pendingFinders += this
+          finderState.set(Waiting)
+        } // re add to queue
       }
       ctx.trench block opponentId // make opponent not in pending state
 

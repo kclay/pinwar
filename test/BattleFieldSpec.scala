@@ -11,6 +11,7 @@ import org.specs2.mutable.{After, Specification}
 import play.api.cache.Cache
 import play.api.libs.iteratee.Concurrent
 import play.api.libs.json.JsValue
+import concurrent.duration._
 
 
 /**
@@ -31,7 +32,13 @@ class BattleFieldSpec extends Specification with Helpers {
 
   sequential
 
-  abstract class Battle extends WithApplication  {
+  class DummyActor extends Actor {
+    def receive = {
+      case _ =>
+    }
+  }
+
+  abstract class Battle extends WithApplication {
     private lazy val _bf = new BattleField
 
     implicit def bf = _bf
@@ -116,12 +123,6 @@ class BattleFieldSpec extends Specification with Helpers {
     "mark opponent as already seen" in new Battle {
 
 
-      class DummyActor extends Actor {
-        def receive = {
-          case _ =>
-        }
-      }
-
       val creator = profile("foo")
       val opponent = profile("bar")
 
@@ -139,7 +140,42 @@ class BattleFieldSpec extends Specification with Helpers {
 
     "create new war" in new Battle {
       val (finder, _, _) = withWar
-      finder.future must beAnInstanceOf[models.War].await
+      val timeout:FiniteDuration = FiniteDuration(5, SECONDS)
+      finder.future must beAnInstanceOf[models.War].await(timeout = timeout)
+
+
+    }
+
+    "choose pending finder as first option when avail" in new Battle {
+      val creator = profile("foo")
+
+
+      bf.master ! Find("foo")
+
+      block(2)
+      val creatorFinder = bf.pendingFinders(0)
+
+      creatorFinder.state mustEqual Waiting
+
+      val opponent = profile("bar")
+
+      creatorFinder.state mustEqual InFlight
+
+      creatorFinder.resolve(opponent.id, false)
+
+      creatorFinder.state mustEqual Waiting
+
+      bf.master ! Find(opponent.id)
+
+      block(2)
+
+      creatorFinder.future must beAnInstanceOf[War].await()
+
+      val scala.util.Success(war) = creatorFinder.future.value.get
+
+      war.creatorId mustEqual creator.id
+
+      war.opponentId mustEqual opponent.id
 
 
     }
@@ -172,7 +208,7 @@ class BattleFieldSpec extends Specification with Helpers {
 
 
       block(2)
-      ref ! WarAction("foo", war.id.get, CreateBoard(UUID.randomUUID().toString, "foo", "#pinterestwars", war.category, "http://google.com"))
+      ref ! WarAction("foo", war.id.get, CreateBoard(UUID.randomUUID().toString, "foo", "#pinterestwars", war.category, "http://google.com", false))
 
 
 
@@ -181,7 +217,7 @@ class BattleFieldSpec extends Specification with Helpers {
         case _ => ""
       }) mustEqual ("foo")
 
-      war = Schema[War].get(war.id.get).toOpt get
+      war = Schema[War].get(war.id.get).toOpt.get
 
       war.winnerId must beSome.which(_ === "foo")
 

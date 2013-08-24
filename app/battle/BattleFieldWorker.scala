@@ -109,19 +109,25 @@ class BattleFieldWorker(ctx: BattleField, masterPath: ActorPath) extends Worker(
       trench :=+ profileId
 
       val profile = profileFor(profileId)
+
       val finder = find(profile, ref, findTimeout.duration)
-      trench.collectFirst {
-        case (p, c) if (p != profileId && c.available) => p
-      } match {
-        case Some(opponentId) => {
+
+      pendingFinders.find(f => f.state == Waiting && f.creatorId != profileId).headOption match {
+        case Some(f) => f.resolve(profileId, true)
+        case _ => trench.find {
+          case (p, c) => p != profileId && c.available
+        } match {
+          case Some((opponentId, _)) => {
 
 
-          log.info(s"Found a opponent for ${profile.name} to battle ${profileFor(opponentId).name}")
+            log.info(s"Found a opponent for ${profile.name} to battle ${profileFor(opponentId).name}")
 
-          finder.request(opponentId)
+            finder.request(opponentId)
+          }
+          case _ => log.info(s"Couldn't find any available user, putting ${profile.name} into `listen` state")
+
+
         }
-        case _ => log.info(s"Couldn't find any available user, putting ${profile.name} into `listen` state")
-
 
       }
 
@@ -200,12 +206,14 @@ class BattleFieldWorker(ctx: BattleField, masterPath: ActorPath) extends Worker(
         war map {
           w =>
 
+
             context.system.actorOf(Props(new WarBattle(w, creatorId, opponentId, creator.actorPath, opponent.actorPath)), name = s"war_${w.id.get}")
 
 
 
             invitesIds -= opponentId
             invitesIds -= creatorId
+            pendingFinders.filter(f => f.creatorId == creatorId || f.creatorId == opponentId).foreach(_.destroy)
             //watch(battle)
             w
 
