@@ -121,6 +121,7 @@ case class Trench(scope: BattleField) extends Actor with ActorLogging {
       c => withPending(opponentId, true)
         // TODO Send email
 
+        //Finder(opponentId) !
         ChallengeToken(ref) map {
           t => {
             val id = t.id.get
@@ -135,7 +136,7 @@ case class Trench(scope: BattleField) extends Actor with ActorLogging {
 
     case FindOpponent(requesterId, filter, requester) => {
       val found = state.collectFirst {
-        case (p, c) if (p != requesterId && c.available && !filter.contains(p)) => {
+        case (p, c) if p != requesterId && c.available && !filter.contains(p) => {
           withPending(p, true)
           p
         }
@@ -179,12 +180,12 @@ case class Trench(scope: BattleField) extends Actor with ActorLogging {
 
       val pending = if (block) c.pending else false
       state += (profileId -> c.copy(blacklisted = block match {
-        case true if (c.blacklisted.isDefined) => c.blacklisted
+        case true if c.blacklisted.isDefined => c.blacklisted
         case true => Some(scheduler.scheduleOnce(blacklistTimeout) {
           log.debug(s"Unblocking $profileId")
           unblock(profileId)
         })
-        case false if (c.blacklisted.isDefined) => c.blacklisted.get.cancel();
+        case false if c.blacklisted.isDefined => c.blacklisted.get.cancel()
           None
         case false => None
       }, pending = pending))

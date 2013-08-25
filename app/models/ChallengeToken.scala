@@ -24,7 +24,7 @@ object ChallengeToken {
 
   def apply(id: String) = Schema[ChallengeToken].get(id).toOpt
 
-  def apply(finder: ActorSelection): Option[ChallengeToken] = (new ChallengeToken(finder = finder.toString())).save match {
+  def apply(finder: ActorSelection): Option[ChallengeToken] = new ChallengeToken(finder = finder.toString()).save match {
     case Left(e) => None
     case Right(r) => r.returnedValue[ChallengeToken]
   }

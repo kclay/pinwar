@@ -23,11 +23,20 @@ import models.Profile
  */
 
 
+sealed trait FinderState
+
+case object InFlight extends FinderState
+
+case object Waiting extends FinderState
+
+case object Done extends FinderState
+
 case object RequestFind
 
 case class QueueFinder(ref: ActorRef)
 
 case class DestroyFinder(profileId: String)
+
 
 case class ResolveChallenge(opponentId: String, accepted: Boolean)
 
@@ -48,23 +57,37 @@ object Finders extends ActorCreator {
 
 }
 
+import scala.concurrent.stm._
+
+case class FinderScope(ref: ActorRef, profileId: String, state: Ref[FinderState])
+
 case class Finders(trench: ActorRef, timeout: Timeout, cache: CacheStore, mode: play.api.Mode.Mode) extends Actor with ActorLogging {
 
 
-  private val pending = mutable.ArrayBuffer.empty[ActorRef]
+  private val pending = mutable.ArrayBuffer.empty[FinderScope]
 
 
-  private val stashed = mutable.ArrayBuffer.empty[ActorRef]
+  private val stashed = mutable.ArrayBuffer.empty[FinderScope]
 
 
   def newFinder(profileId: String) = {
     val profile = cache.profiles get profileId
-    val finder = context.actorOf(Props(classOf[Finder], trench, profile, timeout), profileId)
-   // val finder = Finder(trench, profile, timeout, mode)
-    context.watch(finder)
 
-    pending += finder
-    finder
+
+    pending find (_.state.single.get == Waiting) match {
+      case Some(scope) => scope.ref ! ResolveChallenge(profileId, true); None
+      case _ => {
+        val state = Ref[FinderState](Waiting)
+        val finder = context.actorOf(Props(classOf[Finder], trench, profile, timeout, state), profileId)
+        // val finder = Finder(trench, profile, timeout, mode)
+        context.watch(finder)
+        pending += FinderScope(finder, profileId, state)
+        Some(finder)
+
+      }
+    }
+
+
   }
 
   def receive = {
@@ -79,7 +102,7 @@ case class Finders(trench: ActorRef, timeout: Timeout, cache: CacheStore, mode: 
           pending remove 0
           stashed += finder
           // update opponent state
-          finder ! ChallengeRequested(opponentId)
+          finder.ref ! ChallengeRequested(opponentId)
 
         }
       } orElse {
@@ -89,13 +112,13 @@ case class Finders(trench: ActorRef, timeout: Timeout, cache: CacheStore, mode: 
     }
 
 
-    case Terminated(ref) => Seq(pending, stashed).map {
+    case Terminated(ref) => Seq(pending, stashed).foreach {
       collection =>
-        val index = collection.indexOf(ref)
+        val index = collection.map(_.ref).indexOf(ref)
         if (index > -1) collection.remove(index)
     }
-    case QueueFinder(ref) => if (!pending.contains(ref)) {
-      pending += ref
+    case QueueFinder(ref) => if (!pending.map(_.ref).contains(ref)) {
+      // pending += ref
     } else log info s"Finder already in queue $ref"
     case DestroyFinder(profileId) => {
       context.actorSelection(profileId) ! PoisonPill
@@ -118,7 +141,7 @@ object Finder extends ActorCreator {
 }
 
 
-case class Finder(trench: ActorRef, profile: Profile, timeout: Timeout) extends Actor with TestAble {
+case class Finder(trench: ActorRef, profile: Profile, timeout: Timeout, state: Ref[FinderState]) extends Actor with TestAble {
 
   import utils.Serialization.Writes._
 
@@ -142,9 +165,17 @@ case class Finder(trench: ActorRef, profile: Profile, timeout: Timeout) extends 
 
   override def preStart() {
     super.preStart()
+
+
     trench ! FindOpponent(creatorId, alreadySeen, Some((selection, profile)))
+    changeState(Waiting)
   }
 
+
+  private def changeState(newState: FinderState) = atomic {
+    implicit txn =>
+      state() = newState
+  }
 
   override def postStop() {
     destroy
@@ -190,8 +221,11 @@ case class Finder(trench: ActorRef, profile: Profile, timeout: Timeout) extends 
 
   def receive = {
 
-    case SeenWho => sender ! Seen(alreadySeen)
-    case ChallengeRequested(opponentId) => trench ! RequestChallenge(selection, profile, opponentId)
+
+    case ChallengeRequested(opponentId) => {
+      trench ! RequestChallenge(selection, profile, opponentId)
+      changeState(InFlight)
+    }
     case ResolveChallenge(opponentId, accepted) => resolve(opponentId, accepted)
   }
 
@@ -202,14 +236,14 @@ case class Finder(trench: ActorRef, profile: Profile, timeout: Timeout) extends 
       case x: Throwable => println(x)
     }
     p.completeWith(master.ask(NewWar(creatorId, opponentId))(Timeout(20 seconds)).mapTo[War])
-
+    changeState(Done)
   } else {
     alreadySeen += opponentId
 
     val profileId = profile.id
 
     trench ! FindOpponent(profileId, alreadySeen, Some((selection, profile)))
-
+    changeState(Waiting)
 
 
     trench ! Block(opponentId) // make opponent not in pending state

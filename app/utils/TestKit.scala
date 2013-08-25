@@ -17,16 +17,20 @@ class TestKit {
 trait TestAble {
   this: Actor =>
 
+  import play.api.Play.current
+  import play.api.Mode.Test
+
   override def preStart() {
 
-    TestKit.addToStack(this)
+    if (current.mode == Test)
+      TestKit.addToStack(this)
   }
 
 
   override def postStop() {
 
-
-    TestKit.removeToStack(this)
+    if (current.mode == Test)
+      TestKit.removeToStack(this)
   }
 }
 

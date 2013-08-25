@@ -62,7 +62,7 @@ class BattleFieldSpec extends Specification with Helpers {
 
     bf.connections ! Connect(id, channel, false)
 
-
+    block(1)
     p
     // p
   }
@@ -137,6 +137,40 @@ class BattleFieldSpec extends Specification with Helpers {
       val (finder, _, _) = withWar
 
       finder.future must beAnInstanceOf[models.War].await(2)
+
+    }
+
+    "choose pending finder as first option when avail" in new Battle {
+      val creator = profile("foo")
+
+
+      bf.master ! Find("foo")
+
+      block(2)
+      val creatorFinder = TestKit.last[Finder]
+
+      creatorFinder.state.single.get mustEqual Waiting
+
+      val opponent = profile("bar")
+
+      creatorFinder.state.single.get mustEqual InFlight
+
+      creatorFinder.resolve(opponent.id, false)
+
+      creatorFinder.state.single.get mustEqual Waiting
+
+      bf.master ! Find(opponent.id)
+
+
+
+      creatorFinder.future must beAnInstanceOf[War].await(timeout = FiniteDuration(2, SECONDS))
+
+      val scala.util.Success(war) = creatorFinder.future.value.get
+
+      war.creatorId mustEqual creator.id
+
+      war.opponentId mustEqual opponent.id
+
 
     }
 

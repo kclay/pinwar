@@ -124,6 +124,8 @@ class BattleField {
 
   val state = new TrenchState
 
+  state.subscribe(sub)
+
 
   def currentMode = current.mode
 
