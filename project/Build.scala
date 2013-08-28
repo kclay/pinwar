@@ -61,6 +61,7 @@ object ApplicationBuild extends Build {
     //routesImport ++= Seq("binders._", "models._", "models.Fight.Actions._"),
     routesImport ++= Seq("models._"),
     scalaVersion := "2.10.2",
+    unmanagedResourceDirectories in Compile <+= baseDirectory( _ / "app" ),
     lessEntryPoints <<= baseDirectory(_ / "app" / "assets" / "stylesheets" ** "*.less")
   ).configs(Atmos)
     .settings(atmosSettings: _*)
