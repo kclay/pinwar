@@ -51,4 +51,6 @@ trait ActorCreator {
 
   def props(bf: BattleField): Props
 
+
+
 }

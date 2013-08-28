@@ -71,7 +71,7 @@ object War extends Controller with WithCors {
   )
 
 
-  def player(p: Profile) = Cached(s"player-${p.id}") {
+  def player(p: Profile) = Cached(s"player-${p.id}",300) {
     AllowCors {
       implicit request =>
         var jsp = profileWrites.writes(p).asInstanceOf[JsObject]

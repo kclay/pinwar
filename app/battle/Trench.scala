@@ -79,6 +79,8 @@ object Trench extends ActorCreator {
 
   def props(bf: BattleField) = Props(classOf[Trench], bf).withRouter(FromConfig)
 
+  def !(msg: Any)(implicit system: ActorSystem) = system.actorSelection("/user/" + actorName) ! msg
+
 }
 
 case class Trench(scope: BattleField) extends Actor with ActorLogging {

@@ -67,6 +67,8 @@ class WarBattle(war: War, creatorId: String, opponentId: String, creator: ActorS
   override def postStop() {
     super.postStop()
 
+    Trench ! UnMarkPending(creatorId)
+    Trench ! UnMarkPending(opponentId)
     //activeWars remove creatorId
     //activeWars remove opponentId
   }
