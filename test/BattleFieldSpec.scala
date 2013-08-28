@@ -105,7 +105,7 @@ class BattleFieldSpec extends Specification with Helpers {
       bf.finders ! Find("foo")
 
       val ref = withValue(Finders.identify("foo"), 5)
-      ref ! ResolveChallenge(opponent.id, false)
+      ref ! ResolveChallenge(creator.id, opponent.id, false)
 
       val finder = TestKit.last[Finder]
 
@@ -125,7 +125,7 @@ class BattleFieldSpec extends Specification with Helpers {
 
 
       val ref = withValue(Finders.identify("foo"), 5)
-      ref ! ResolveChallenge(opponent.id, true)
+      ref ! ResolveChallenge(creator.id, opponent.id, true)
       val finder = TestKit.last[Finder]
       (finder, creator, opponent)
 
@@ -143,23 +143,37 @@ class BattleFieldSpec extends Specification with Helpers {
     "choose pending finder as first option when avail" in new Battle {
       val creator = profile("foo")
 
-
+      val finders = bf.finders.asInstanceOf[TestActorRef[Finders]].underlyingActor
       bf.master ! Find("foo")
 
       block(2)
       val creatorFinder = TestKit.last[Finder]
 
+      finders.pending.size mustEqual (1)
+
       creatorFinder.state.single.get mustEqual Waiting
 
       val opponent = profile("bar")
 
+
+      finders.pending.size mustEqual 0
+      finders.stashed.size mustEqual 1
       creatorFinder.state.single.get mustEqual InFlight
 
-      creatorFinder.resolve(opponent.id, false)
+
+
+
+      bf.finders ! ResolveChallenge(creator.id, opponent.id, false)
+
+      finders.pending.size mustEqual 1
+      finders.stashed.size mustEqual 0
+
 
       creatorFinder.state.single.get mustEqual Waiting
 
       bf.master ! Find(opponent.id)
+
+
 
 
 

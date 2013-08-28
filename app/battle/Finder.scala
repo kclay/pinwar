@@ -38,7 +38,7 @@ case class QueueFinder(ref: ActorRef)
 case class DestroyFinder(profileId: String)
 
 
-case class ResolveChallenge(opponentId: String, accepted: Boolean)
+case class ResolveChallenge(profileId: String, opponentId: String, accepted: Boolean)
 
 case class ChallengeRequested(opponentId: String)
 
@@ -64,10 +64,10 @@ case class FinderScope(ref: ActorRef, profileId: String, state: Ref[FinderState]
 case class Finders(trench: ActorRef, timeout: Timeout, cache: CacheStore, mode: play.api.Mode.Mode) extends Actor with ActorLogging {
 
 
-  private val pending = mutable.ArrayBuffer.empty[FinderScope]
+  val pending = mutable.ListBuffer.empty[FinderScope]
 
 
-  private val stashed = mutable.ArrayBuffer.empty[FinderScope]
+  val stashed = mutable.ListBuffer.empty[FinderScope]
 
 
   def newFinder(profileId: String) = {
@@ -75,7 +75,7 @@ case class Finders(trench: ActorRef, timeout: Timeout, cache: CacheStore, mode: 
 
 
     pending find (_.state.single.get == Waiting) match {
-      case Some(scope) => scope.ref ! ResolveChallenge(profileId, true); None
+      case Some(scope) => self ! ResolveChallenge(scope.profileId, profileId, true); None
       case _ => {
         val state = Ref[FinderState](Waiting)
         val finder = context.actorOf(Props(classOf[Finder], trench, profile, timeout, state), profileId)
@@ -94,6 +94,17 @@ case class Finders(trench: ActorRef, timeout: Timeout, cache: CacheStore, mode: 
 
     case Find(profileId) => newFinder(profileId)
 
+
+    case rc@ResolveChallenge(profileId, opponentId, resolved) => {
+      stashed.find(_.profileId == profileId).foreach {
+        s =>
+          if (!resolved) {
+            stashed -= s
+            pending += s
+          }
+          s.ref ! rc
+      }
+    }
 
     case ApplyToFinder(opponentId: String, _) => {
       pending.headOption map {
@@ -226,7 +237,7 @@ case class Finder(trench: ActorRef, profile: Profile, timeout: Timeout, state: R
       trench ! RequestChallenge(selection, profile, opponentId)
       changeState(InFlight)
     }
-    case ResolveChallenge(opponentId, accepted) => resolve(opponentId, accepted)
+    case ResolveChallenge(_, opponentId, accepted) => resolve(opponentId, accepted)
   }
 
   def resolve(opponentId: String, accepted: Boolean): Unit = if (accepted) {

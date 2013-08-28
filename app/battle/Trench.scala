@@ -42,7 +42,11 @@ case class GetContext(profileId: String)
 
 case class RequestChallenge(finder: ActorSelection, profile: Profile, opponentId: String)
 
-class TrenchSub(ctx: BattleField) extends mutable.Subscriber[Message[(String, ChannelContext)] with mutable.Undoable, Trench] {
+class TrenchState extends mutable.HashMap[String, ChannelContext] with mutable.ObservableMap[String, ChannelContext] {
+  type Pub = TrenchState
+}
+
+class TrenchSub(ctx: BattleField) extends mutable.Subscriber[Message[(String, ChannelContext)] with mutable.Undoable, TrenchState] {
   private val logger = Logger(getClass)
   type Sub = (String, ChannelContext)
 
@@ -55,7 +59,7 @@ class TrenchSub(ctx: BattleField) extends mutable.Subscriber[Message[(String, Ch
 
   def inviting(m: {val elem: Sub}) = ctx.invitesIds.contains(m.elem._1)
 
-  def notify(pub: Trench, event: Message[Sub] with mutable.Undoable): Unit = future({
+  def notify(pub: TrenchState, event: Message[Sub] with mutable.Undoable): Unit = future({
     // TODO : This should take the common boards that each player has and pick the correct users to play against for the first pass
     // the second pass will check if we have a board theme for the common board, if not its a freeplay
     (event match {
@@ -122,7 +126,7 @@ case class Trench(scope: BattleField) extends Actor with ActorLogging {
         // TODO Send email
 
         //Finder(opponentId) !
-        ChallengeToken(ref) map {
+        ChallengeToken(profile.id, ref) map {
           t => {
             val id = t.id.get
             scope.challengeTokens += (id -> ref)
@@ -201,13 +205,13 @@ trait FinderStrategy {
 
   type Apply = PartialFunction[(String, ChannelContext), Unit]
 
-  def apply(trench: Trench): Apply
+  def apply(trench: TrenchState): Apply
 }
 
 case class DefaultFindStrategy(ctx: BattleField) extends FinderStrategy {
   private val logger = Logger(getClass)
 
-  def apply(trench: Trench): Apply = {
+  def apply(trench: TrenchState): Apply = {
     case (opponentId: String, c: ChannelContext) =>
       ctx.finders ! ApplyToFinder(opponentId, c)
 

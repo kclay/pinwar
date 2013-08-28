@@ -159,7 +159,8 @@ class BattleFieldWorker(ctx: BattleField, masterPath: ActorPath) extends Worker(
           context.system.actorOf(Props(new WarBattle(w, creatorId, opponentId, creator, opponent)), name = s"war_${w.id.get}")
 
 
-
+          finders ! DestroyFinder(opponentId)
+          finders ! DestroyFinder(creatorId)
           invitesIds -= opponentId
           invitesIds -= creatorId
           //watch(battle)

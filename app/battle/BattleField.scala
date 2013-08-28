@@ -96,9 +96,6 @@ class BattleField {
 
   import play.api.Play.current
 
-  class TrenchState extends mutable.HashMap[String, ChannelContext] with mutable.ObservableMap[String, ChannelContext] {
-    type Pub = TrenchState
-  }
 
   lazy val caches = CacheStore.instance
   val timeoutThreshold = 5

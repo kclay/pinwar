@@ -49,7 +49,7 @@ trait Helpers {
 
         CurrentSchema(Some(TestSchema))
 
-
+        TestSchema.setup(TestSchema.connection)
         val value = t
         after
         value

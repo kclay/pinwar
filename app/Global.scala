@@ -14,8 +14,8 @@ object Global extends GlobalSettings {
   override def onStart(app: Application) {
 
     CurrentSchema(None)
-    import models.Schema.connection
-    models.Schema.setup
+    //import models.Schema.connection
+    //models.Schema.setup
 
     super.onStart(app)
 
