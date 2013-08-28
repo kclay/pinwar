@@ -104,7 +104,7 @@ object War {
 }
 
 
-case class Rules(category: Category, points: Int = 10000, hashtag: Option[String] = Some("#pinterestwars"))
+case class Rules(category: Category, points: Int = 10000, hashtag: Option[String] = Some("#pinterestwar"))
 
 case class War(id: Option[String] = None, creatorId: String, opponentId: String, rules: Rules, createdAt: DateTime = DateTime.now(),
                endedAt: Option[DateTime] = None, winnerId: Option[String] = None) extends Document {

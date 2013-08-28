@@ -142,7 +142,7 @@ class BattleField {
   def worker(name: String) = system.actorOf(Props(
     new BattleFieldWorker(this, actorPath("battle_field"))), name = name)
 
-  private val numOfWorkers = 2
+  private val numOfWorkers = 5
   lazy val master = {
     val _master = system.actorOf(Props[Master], name = "battle_field")
     (1 to numOfWorkers).foreach(x => worker(s"worker_${x }"))

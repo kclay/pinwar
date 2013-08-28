@@ -71,7 +71,7 @@ object War extends Controller with WithCors {
   )
 
 
-  def player(p: Profile) = Cached(s"player-${p.id}",300) {
+  def player(p: Profile) = Cached(s"player-${p.id}") {
     AllowCors {
       implicit request =>
         var jsp = profileWrites.writes(p).asInstanceOf[JsObject]
@@ -111,15 +111,9 @@ object War extends Controller with WithCors {
 
   def newSignup(profile: Profile, token: Option[String] = None)(implicit rh: RequestHeader): SimpleResult = {
 
-    val p = token.map {
-      t => {
-        // TODO ensure data is removed
-        val email = caches.invites(t)
+    val p = token.map(caches.invites(_).map(e => profile.copy(email = e))).flatten.getOrElse(profile)
 
-        email.map(e => profile.copy(email = e))
-      }
-    }.flatten.getOrElse(profile)
-
+   
     profiles.insert(p).run match {
       case Left(e) => BadRequest("Already registered")
       case Right(r) => if (r.inserted == 1) {
@@ -215,8 +209,8 @@ object War extends Controller with WithCors {
 
             }
 
-            case Extractor.Find(f) => master ! f
-            /*  (master.ask(f)(ctx.findTimeout)) onComplete {
+            case Extractor.Find(f) => {
+              (master.ask(f)(ctx.findTimeout)) onComplete {
                 case Success(w: models.War) =>
                 case Failure(e) => {
                   println(s"Find Failure ${e.getMessage}")
@@ -225,9 +219,9 @@ object War extends Controller with WithCors {
                 case _ =>
               }
 
-            }  */
-            case Extractor.Invite(r) => master.ask(r)(Timeout(30, SECONDS)).mapTo[String] onComplete {
-              case Success(token) => {
+            }
+            case Extractor.Invite(r) => master.ask(r)(Timeout(30, SECONDS)) onComplete {
+              case Success(token: String) => {
 
                 val feedback = caches.invites(token).map {
                   _ => withFeedback(s"Invite for ${r.email} has already been sent")

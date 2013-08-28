@@ -5,6 +5,7 @@ import play.Project._
 import sbt.File
 
 import com.typesafe.sbt.SbtAtmos.{Atmos, atmosSettings}
+import com.typesafe.sbt.SbtAtmos.AtmosKeys.{traceable, sampling}
 
 object ApplicationBuild extends Build {
 
@@ -62,7 +63,18 @@ object ApplicationBuild extends Build {
     routesImport ++= Seq("models._"),
     scalaVersion := "2.10.2",
     unmanagedResourceDirectories in Compile <+= baseDirectory(_ / "app"),
-    lessEntryPoints <<= baseDirectory(_ / "app" / "assets" / "stylesheets" ** "*.less")
+    lessEntryPoints <<= baseDirectory(_ / "app" / "assets" / "stylesheets" ** "*.less"),
+    traceable in Atmos := Seq(
+      "/user/*" -> true, // trace this actor
+
+      "*" -> false // other actors are not traced
+    ),
+
+    sampling in Atmos := Seq(
+      "/user/*" -> 1 // sample every trace for this actor
+
+    )
+
   ).configs(Atmos)
     .settings(atmosSettings: _*)
 

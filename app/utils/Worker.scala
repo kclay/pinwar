@@ -121,6 +121,13 @@ abstract class Worker(masterLocation: ActorPath)
   // Notify the Master that we're alive
   override def preStart() = master ! WorkerCreated(self)
 
+
+  @throws(classOf[Exception])
+  override def preRestart(reason: Throwable, message: Option[Any]) {
+    super.preRestart(reason, message)
+    log error(reason, message.getOrElse("").toString)
+  }
+
   // This is the state we're in when we're working on something.
   // In this state we can deal with messages in a much more
   // reasonable manner
@@ -144,7 +151,9 @@ abstract class Worker(masterLocation: ActorPath)
   }
 
 
-  def actorTerminated(actor: ActorRef) = {}
+  def actorTerminated(actor: ActorRef) = {
+    log error (s"actorTerminated $actor")
+  }
 
   // In this state we have no work to do.  There really are only
   // two messages that make sense while we're in this state, and

@@ -55,7 +55,7 @@ class Schema(dbName: String) extends com.rethinkscala.Schema {
   private val host = configuration.getString("rethink.default.url", None)
   private val version = Version1(host.getOrElse("127.0.0.1"), maxConnections = 20)
   implicit val connection = Connection(version)
-  println(host)
+
 
 
   val DB = Some(dbName)

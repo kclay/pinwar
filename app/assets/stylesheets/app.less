@@ -660,12 +660,17 @@ body.point {
 }
 
 @settingsHeight: 170px;
+@rulesHeight: 145px;
 body.feedback {
 
   .App .headerBackground, .App .headerContainer {
 
     .slideDown(@height + @feedbackHeight,0)
 
+  }
+  .App.full .appContent {
+
+    .slideDown(@appContentHeight + @feedbackHeight,0)
   }
   &.settings {
 
@@ -678,10 +683,17 @@ body.feedback {
 
   }
 
-  .App.full .appContent {
+  &.rules{
 
-    .slideDown(@appContentHeight + @feedbackHeight,0)
+    .App .headerBackground, .App .headerContainer {
+      .slideDown(@height + @rulesHeight,0)
+    }
+    .App.full .appContent {
+      .slideDown(@appContentHeight + @rulesHeight,0)
+    }
   }
+
+
 
   #pinwar #feedback {
 
