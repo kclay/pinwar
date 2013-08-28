@@ -50,9 +50,11 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
   def state: FinderState = finderState.get()
 
   def destroy = {
-    cleanup
+    ctx.pendingFinders -= this
+    ctx.finders -= this
     countdown.cancel()
     handle.cancel()
+    countdown.cancel()
 
   }
 
@@ -66,18 +68,11 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
 
   }
 
-  private def cleanup = {
-    var index = ctx.pendingFinders.indexOf(this)
-    if (index > -1)
-      ctx.pendingFinders.remove(index)
-    index = ctx.finders.indexOf(this)
-    if (index > -1)
-      ctx.finders.remove(index)
-  }
 
   private val handle: Cancellable = ctx.system.scheduler.scheduleOnce(timeout.duration) {
-    countdown.cancel()
-    cleanup
+    destroy
+    val msg: JsValue = new Error("Unable to find any opponents to challenge.")
+    channel ! msg
     p.failure(FinderTimeout(creatorId))
 
   }
@@ -135,10 +130,10 @@ case class Finder(ctx: BattleField, profile: Profile, sender: ActorRef, timeout:
       alreadySeen += opponentId
 
       val profileId = profile.id
-      ctx.trench.collectFirst {
-        case (p, c) if (p != profileId && c.available && !alreadySeen.contains(p)) => p
+      ctx.trench.find {
+        case (p, c) => p != profileId && c.available && !alreadySeen.contains(p)
       } match {
-        case Some(opponentId) => {
+        case Some((opponentId, _)) => {
 
           request(opponentId)
         }

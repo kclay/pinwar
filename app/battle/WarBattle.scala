@@ -63,6 +63,7 @@ class WarBattle(war: War, creatorId: String, opponentId: String, creatorPath: Ac
 
   override def postStop() {
     super.postStop()
+    // NEW
     trench :=- creatorId
     trench :=- opponentId
 

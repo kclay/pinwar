@@ -112,7 +112,7 @@ class BattleFieldWorker(ctx: BattleField, masterPath: ActorPath) extends Worker(
 
       val finder = find(profile, ref, findTimeout.duration)
 
-      pendingFinders.find(f => f.state == Waiting && f.creatorId != profileId).headOption match {
+      pendingFinders.find(f => f.state == Waiting && f.creatorId != profileId) match {
         case Some(f) => f.resolve(profileId, true)
         case _ => trench.find {
           case (p, c) => p != profileId && c.available
@@ -206,6 +206,7 @@ class BattleFieldWorker(ctx: BattleField, masterPath: ActorPath) extends Worker(
         war map {
           w =>
 
+          // NEW
             trench :=+ creatorId
             trench :=+ opponentId
             context.system.actorOf(Props(new WarBattle(w, creatorId, opponentId, creator.actorPath, opponent.actorPath)), name = s"war_${w.id.get}")
