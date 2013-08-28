@@ -209,17 +209,13 @@ object War extends Controller with WithCors {
 
             }
 
-            case Extractor.Find(f) => {
-              (master.ask(f)(ctx.findTimeout)) onComplete {
-                case Success(w: models.War) =>
-                case Failure(e) => {
-                  println(s"Find Failure ${e.getMessage}")
-                  watchedChannel.push(e)
-                }
-                case _ =>
-              }
-
+            case Extractor.Find(f) => (master.ask(f)(ctx.findTimeout)) onFailure {
+              case e =>
+                println(s"Find Failure ${e.getMessage}")
+                watchedChannel.push(e)
             }
+
+
             case Extractor.Invite(r) => master.ask(r)(Timeout(30, SECONDS)) onComplete {
               case Success(token: String) => {
 

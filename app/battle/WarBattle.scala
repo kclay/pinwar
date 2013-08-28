@@ -22,6 +22,7 @@ class WarBattle(war: War, creatorId: String, opponentId: String, creatorPath: Ac
 
 
   import BattleField.instance.caches
+  import BattleField.instance.trench
 
   val creator = context.system.actorSelection(creatorPath)
 
@@ -62,6 +63,8 @@ class WarBattle(war: War, creatorId: String, opponentId: String, creatorPath: Ac
 
   override def postStop() {
     super.postStop()
+    trench :=- creatorId
+    trench :=- opponentId
 
     //activeWars remove creatorId
     //activeWars remove opponentId
@@ -85,7 +88,7 @@ class WarBattle(war: War, creatorId: String, opponentId: String, creatorPath: Ac
 
 
         war won winnerId
-        self ! PoisonPill
+        context.stop(self)
       }
     }
 

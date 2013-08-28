@@ -206,7 +206,8 @@ class BattleFieldWorker(ctx: BattleField, masterPath: ActorPath) extends Worker(
         war map {
           w =>
 
-
+            trench :=+ creatorId
+            trench :=+ opponentId
             context.system.actorOf(Props(new WarBattle(w, creatorId, opponentId, creator.actorPath, opponent.actorPath)), name = s"war_${w.id.get}")
 
 

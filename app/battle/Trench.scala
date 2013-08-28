@@ -54,7 +54,7 @@ class Trench(ctx: BattleField) extends mutable.HashMap[String, ChannelContext] w
 
 
   def context(profileId: String, pending: Boolean) = get(profileId) map {
-    c => this += (profileId -> c.copy(pending = pending))
+    c => if (c.pending != pending) this += (profileId -> c.copy(pending = pending))
 
 
   }
