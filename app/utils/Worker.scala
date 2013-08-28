@@ -45,6 +45,8 @@ class Master extends Actor with ActorLogging {
         case (worker, m) if (m.isEmpty) => worker ! WorkIsReady
         case _ =>
       }
+    } else {
+      log info ("No workers!!!!")
     }
   }
 

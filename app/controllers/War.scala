@@ -124,12 +124,12 @@ object War extends Controller with WithCors {
           else Some(Ok(""))
 
 
-          case Left(e) => Some(BadRequest)
+          case Left(e) => Some(BadRequest("Signup error"))
         }).get
 
 
       } else {
-        BadRequest
+        BadRequest("Unable to create your profile")
       }
 
     }

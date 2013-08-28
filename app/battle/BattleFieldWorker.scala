@@ -104,35 +104,40 @@ class BattleFieldWorker(ctx: BattleField, masterPath: ActorPath) extends Worker(
     }
     case Find(profileId) => {
 
+      pendingFinders.find(_.creatorId == profileId) match {
+        case Some(_) => //  push(profileId,new Error(""))
+        case _ => {
+          // update state
+          trench :=+ profileId
 
-      // update state
-      trench :=+ profileId
+          val profile = profileFor(profileId)
 
-      val profile = profileFor(profileId)
+          val finder = find(profile, ref, findTimeout.duration)
 
-      val finder = find(profile, ref, findTimeout.duration)
-
-      pendingFinders.find(f => f.state == Waiting && f.creatorId != profileId) match {
-        case Some(f) => f.resolve(profileId, true)
-        case _ => trench.find {
-          case (p, c) => p != profileId && c.available
-        } match {
-          case Some((opponentId, _)) => {
+          pendingFinders.find(f => f.state == Waiting && f.creatorId != profileId) match {
+            case Some(f) => f.resolve(profileId, true)
+            case _ => trench.find {
+              case (p, c) => p != profileId && c.available
+            } match {
+              case Some((opponentId, _)) => {
 
 
-            log.info(s"Found a opponent for ${profile.name} to battle ${profileFor(opponentId).name}")
+                log.info(s"Found a opponent for ${profile.name} to battle ${profileFor(opponentId).name}")
 
-            finder.request(opponentId)
+                finder.request(opponentId)
+              }
+              case _ => log.info(s"Couldn't find any available user, putting ${profile.name} into `listen` state")
+
+
+            }
+
           }
-          case _ => log.info(s"Couldn't find any available user, putting ${profile.name} into `listen` state")
 
 
+          finder.future pipeTo ref
         }
-
       }
 
-
-      finder.future pipeTo ref
 
     }
 
