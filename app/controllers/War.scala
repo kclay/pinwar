@@ -71,7 +71,7 @@ object War extends Controller with WithCors {
   )
 
 
-  def player(p: Profile) = Cached(s"player-${p.id}") {
+  def player(p: Profile) = Cached(s"player-${p.id}", 300) {
     AllowCors {
       implicit request =>
         var jsp = profileWrites.writes(p).asInstanceOf[JsObject]
@@ -111,14 +111,8 @@ object War extends Controller with WithCors {
 
   def newSignup(profile: Profile, token: Option[String] = None)(implicit rh: RequestHeader): SimpleResult = {
 
-    val p = token.map {
-      t => {
-        // TODO ensure data is removed
-        val email = caches.invites(t)
+    val p = token.map(caches.invites(_).map(e => profile.copy(email = e))).flatten.getOrElse(profile)
 
-        email.map(e => profile.copy(email = e))
-      }
-    }.flatten.getOrElse(profile)
 
     profiles.insert(p).run match {
       case Left(e) => BadRequest("Already registered")
@@ -202,7 +196,7 @@ object War extends Controller with WithCors {
               }
 
               caches.invites(a.token) match {
-                case Some(email) => {
+                case Some(_) => {
 
 
                   caches.invites - a.token
