@@ -84,6 +84,18 @@ class BattleFieldWorker(ctx: BattleField, masterPath: ActorPath) extends Worker(
 
   }
 
+
+  override def actorTerminated(actor: ActorRef) {
+    super.actorTerminated(actor)
+    actor.path.name match {
+      case ProfileId(profileId) => {
+        context.unwatch(actor)
+        handleDisconnect(profileId)
+      }
+      case _ => log error s"Actor terimated but wasn't profile $actor"
+    }
+  }
+
   private def processWork(ref: ActorRef, work: Any): Unit = work match {
     case Connect(profileId, channel, fromInvite) => {
       val connection = context.system.actorOf(Props(Connection(channel)), name = s"profile_${profileId}")
@@ -91,17 +103,7 @@ class BattleFieldWorker(ctx: BattleField, masterPath: ActorPath) extends Worker(
       trench += (profileId -> new ChannelContext(connection.path, pending = fromInvite))
     }
 
-    case Terminated(actor) => {
-      actor.path.name match {
-        case ProfileId(profileId) => {
-          context.unwatch(actor)
-          self ! Disconnect(profileId)
-        }
-        case _ =>
-      }
 
-
-    }
     case Find(profileId) => {
 
       pendingFinders.find(_.creatorId == profileId) match {
@@ -247,35 +249,35 @@ class BattleFieldWorker(ctx: BattleField, masterPath: ActorPath) extends Worker(
 
     }
 
-    case d@Disconnect(profileId) => {
-      trench.remove(profileId) map {
-        cc => {
-          log.info(s"Sending PoisonPill to $profileId")
-          cc ! PoisonPill
-          invitesIds -= profileId
+    case Disconnect(profileId) => handleDisconnect(profileId)
 
-          Seq(finders, pendingFinders).map {
-            collection => collection.find(_.creatorId == profileId).map {
-              f => {
-                log info s"Destorying finder for $profileId"
-                f.destroy
 
-              }
-            }
-          }
-
-          challengeTokens retain ((t, f) => f.creatorId != profileId)
-          invites.retain {
-            case (k, (creatorId, _)) => creatorId != profileId
-          }
-        }
-
-      }
-
-    }
     case _ => log.info("nothing")
 
 
+  }
+
+  def handleDisconnect(profileId: String) = trench.remove(profileId) map {
+    cc => {
+      log.info(s"Sending PoisonPill to $profileId")
+      cc ! PoisonPill
+      invitesIds -= profileId
+
+      Seq(finders, pendingFinders).map {
+        collection => collection.find(_.creatorId == profileId).map {
+          f => {
+            log info s"Destorying finder for $profileId"
+            f.destroy
+
+          }
+        }
+      }
+
+      challengeTokens retain ((t, f) => f.creatorId != profileId)
+      invites.retain {
+        case (k, (creatorId, _)) => creatorId != profileId
+      }
+    }
   }
 
 
