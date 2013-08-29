@@ -257,7 +257,7 @@ class BattleFieldWorker(ctx: BattleField, masterPath: ActorPath) extends Worker(
 
   }
 
-  def handleDisconnect(profileId: String) = trench.remove(profileId) map {
+  private def handleDisconnect(profileId: String) = trench.remove(profileId) map {
     cc => {
       log.info(s"Sending PoisonPill to $profileId")
       cc ! PoisonPill

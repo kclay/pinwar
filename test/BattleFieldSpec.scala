@@ -140,12 +140,23 @@ class BattleFieldSpec extends Specification with Helpers {
 
     "create new war" in new Battle {
       val (finder, _, _) = withWar
-      val timeout:FiniteDuration = FiniteDuration(5, SECONDS)
+      val timeout: FiniteDuration = FiniteDuration(5, SECONDS)
       finder.future must beAnInstanceOf[models.War].await(timeout = timeout)
 
 
     }
 
+     /*
+    "create" in new Battle {
+      val profiles = 1 to 4 map (i => profile(s"profile_$i"))
+
+
+      bf.master ! Find(profiles(0).id)
+      block(1)
+      val finder0 = bf.pendingFinders(0)
+      bf.master ! Find(profiles(1).id)
+      val finder1 = bf.pendingFinders(1)
+    }*/
     "choose pending finder as first option when avail" in new Battle {
       val creator = profile("foo")
 

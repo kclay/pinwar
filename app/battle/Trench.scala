@@ -36,7 +36,7 @@ class Trench(ctx: BattleField) extends mutable.HashMap[String, ChannelContext] w
   private def withBlock(profileId: String, block: Boolean): Unit = get(profileId) map {
     c => {
 
-      val pending = if (block) c.pending else false
+      val pending = block
       this += (profileId -> c.copy(blacklisted = block match {
         case true if (c.blacklisted.isDefined) => c.blacklisted
         case true => Some(ctx.system.scheduler.scheduleOnce(ctx.blacklistTimeout) {
