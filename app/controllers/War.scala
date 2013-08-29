@@ -193,6 +193,8 @@ object War extends Controller with WithCors {
                 }
 
                 profile = Some(a.profile)
+              } else {
+                watchedChannel push signupEvent
               }
 
               caches.invites(a.token) match {
