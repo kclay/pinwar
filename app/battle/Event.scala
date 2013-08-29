@@ -63,7 +63,7 @@ trait Event {
 case class Invite(profileId: String, email: String) extends Event
 
 
-case class NewWar(profileId: String, opponentId: String)
+
 
 case class Disconnect(profileId: String)
 
@@ -76,7 +76,7 @@ case class NewAccount(profile: Profile, token: Option[String] = None)
 case class HandleInvite(profileId: String, token: String, accept: Boolean, profile: Profile) extends Event
 
 
-case class WarAction(profileId: String, war: String, action: BattleAction) extends Event
+case class WarAction(profileId: String, war: String, action: BattleAction) extends Event with ForWars
 
 case class WarAccepted(creator: Profile, opponent: Profile, war: War) extends Event
 

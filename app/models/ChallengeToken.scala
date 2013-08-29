@@ -1,7 +1,7 @@
 package models
 
 import com.rethinkscala.Document
-import akka.actor.{ActorSelection, ActorSystem}
+import akka.actor.{ActorRef, ActorSelection, ActorSystem}
 import battle.{Finders, ResolveChallenge}
 import models.Schema._
 
@@ -24,7 +24,7 @@ object ChallengeToken {
 
   def apply(id: String) = Schema[ChallengeToken].get(id).toOpt
 
-  def apply(profileId: String, finder: ActorSelection): Option[ChallengeToken] = new ChallengeToken(selection = finder, profileId = profileId).save match {
+  def apply(profileId: String, finder: ActorRef): Option[ChallengeToken] = new ChallengeToken(selection = finder.path.toString, profileId = profileId).save match {
     case Left(e) => None
     case Right(r) => r.returnedValue[ChallengeToken]
   }

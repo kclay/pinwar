@@ -14,6 +14,7 @@ import scala.Some
 import models.Profile
 import scala.collection.script.Include
 import utils.ActorCreator
+import akka.event.LoggingReceive
 
 /**
  * Created by IntelliJ IDEA.
@@ -33,14 +34,16 @@ case class Unblock(profileId: String)
 
 case class AddUser(profileId: String, c: ChannelContext)
 
+case class RemoveInvite(profileId: String)
+
 case class RemoveUser(profileId: String)
 
-case class FindOpponent(requesterId: String, filter: Seq[String] = Seq.empty, requester: Option[(ActorSelection, Profile)] = None)
+case class FindOpponent(requesterId: String, filter: Seq[String] = Seq.empty, requester: Option[(ActorRef, Profile)] = None)
 
 
 case class GetContext(profileId: String)
 
-case class RequestChallenge(finder: ActorSelection, profile: Profile, opponentId: String)
+case class RequestChallenge(finder: ActorRef, profile: Profile, opponentId: String)
 
 class TrenchState extends mutable.HashMap[String, ChannelContext] with mutable.ObservableMap[String, ChannelContext] {
   type Pub = TrenchState
@@ -77,9 +80,8 @@ class TrenchSub(ctx: BattleField) extends mutable.Subscriber[Message[(String, Ch
 
 object Trench extends ActorCreator {
 
-  def props(bf: BattleField) = Props(classOf[Trench], bf).withRouter(FromConfig)
+  def props(bf: BattleField) = Props(classOf[Trench], bf).withRouter(FromConfig())
 
-  def !(msg: Any)(implicit system: ActorSystem) = system.actorSelection("/user/" + actorName) ! msg
 
 }
 
@@ -92,28 +94,30 @@ case class Trench(scope: BattleField) extends Actor with ActorLogging {
   val scheduler = context.system.scheduler
   implicit val system = context.system
 
-  def receive = {
+  def receive = LoggingReceive {
 
 
     case AddUser(profileId, c) => state += (profileId -> c)
 
     case RemoveUser(profileId) => state.remove(profileId) map {
       cc => {
-        log.info(s"Sending PoisonPill to $profileId")
+        log.debug(s"Sending PoisonPill to $profileId")
         cc ! PoisonPill
         invitesIds -= profileId
 
         finders ! DestroyFinder(profileId)
 
 
-        log error "Need to clean up challenge tokens"
+        //log error "Need to clean up challenge tokens"
         //challengeTokens retain ((t, f) => f.creatorId != profileId)
+
         invites.retain {
           case (k, (creatorId, _)) => creatorId != profileId
         }
       }
 
     }
+    case RemoveInvite(profileId) => invitesIds -= profileId
 
 
     case MarkPending(profileId) => withPending(profileId, true)
@@ -131,7 +135,7 @@ case class Trench(scope: BattleField) extends Actor with ActorLogging {
         ChallengeToken(profile.id, ref) map {
           t => {
             val id = t.id.get
-            scope.challengeTokens += (id -> ref)
+            // scope.challengeTokens += (id -> ref)
             c ! (ChallengeRequest(id, profile): JsValue)
           }
 
@@ -141,12 +145,15 @@ case class Trench(scope: BattleField) extends Actor with ActorLogging {
     }
 
     case FindOpponent(requesterId, filter, requester) => {
-      val found = state.collectFirst {
-        case (p, c) if p != requesterId && c.available && !filter.contains(p) => {
-          withPending(p, true)
-          p
-        }
+      val found = state.find {
+        case (p, c) => p != requesterId && c.available && !filter.contains(p)
+
+
+      } map {
+        case (p, c) => withPending(p, true); p
+
       }
+
       sender ! found
 
       for {
@@ -160,7 +167,7 @@ case class Trench(scope: BattleField) extends Actor with ActorLogging {
         case _ => {
           log.info(s"Couldn't find any available user, putting ${profile.name} into `listen` state")
           log error "TODO : ReQueue Finder"
-          //finders ! QueueFinder(finder)
+          finders ! QueueFinder(finder)
         }
       }
     }

@@ -113,7 +113,7 @@ object War extends Controller with WithCors {
 
     val p = token.map(caches.invites(_).map(e => profile.copy(email = e))).flatten.getOrElse(profile)
 
-   
+
     profiles.insert(p).run match {
       case Left(e) => BadRequest("Already registered")
       case Right(r) => if (r.inserted == 1) {
@@ -140,7 +140,7 @@ object War extends Controller with WithCors {
       profileForm.bindFromRequest fold(
         hasErrors => BadRequest("invalid"), {
         case (profile, token) => {
-          val already = profiles.filter(v => v \ "id" === profile.id or v \ "id" === profile.email)
+          val already = profiles.filter(v => v \ "id" === profile.id or v \ "email" === profile.email)
           already(0) run match {
             case Left(e: RethinkNoResultsError) => newSignup(profile, token)
             case Left(e) => BadRequest("Unknown Error")
@@ -209,17 +209,17 @@ object War extends Controller with WithCors {
 
             }
 
-            case Extractor.Find(f) => {
-              (master.ask(f)(ctx.findTimeout)) onComplete {
-                case Success(w: models.War) =>
-                case Failure(e) => {
-                  println(s"Find Failure ${e.getMessage}")
-                  watchedChannel.push(e)
-                }
-                case _ =>
+            case Extractor.Find(f) => master ! f
+            /*(master.ask(f)(ctx.findTimeout)) onComplete {
+              case Success(w: models.War) =>
+              case Failure(e) => {
+                println(s"Find Failure ${e.getMessage}")
+                watchedChannel.push(e)
               }
-
+              case _ =>
             }
+
+          }    */
             case Extractor.Invite(r) => master.ask(r)(Timeout(30, SECONDS)) onComplete {
               case Success(token: String) => {
 
@@ -241,6 +241,7 @@ object War extends Controller with WithCors {
                 log error("Invite Failure", e)
                 watchedChannel push (Option(e.getCause).getOrElse(e))
               }
+              case msg: Any => log error s"Error with Invite Extractor : $msg"
               // TODO add auto battle creation if user is currently on the site
 
             }

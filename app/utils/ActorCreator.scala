@@ -43,6 +43,18 @@ trait ActorCreator {
   }
 
 
+  private var self: Option[ActorSelection] = None
+
+  private def getOrCreate(system: ActorSystem) = {
+    self = (self orElse (Some(system.actorSelection(s"/user/$actorName"))))
+    self.get
+  }
+
+
+  def tell(msg: Any, sender: ActorRef = Actor.noSender)(implicit system: ActorSystem) = getOrCreate(system).tell(msg, sender)
+
+  def !(msg: Any)(implicit system: ActorSystem) = getOrCreate(system) ! msg
+
 
   def identify(name: String, timeout: Timeout = Timeout(10, SECONDS))(implicit system: ActorSystem): Future[ActorRef] = {
     implicit val ec = system.dispatcher
@@ -50,7 +62,6 @@ trait ActorCreator {
   }
 
   def props(bf: BattleField): Props
-
 
 
 }

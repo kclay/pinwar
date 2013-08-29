@@ -13,6 +13,7 @@ import play.api.Mode._
 import scala.Some
 import akka.actor.Terminated
 import models.Profile
+import akka.event.LoggingReceive
 
 
 /**
@@ -75,14 +76,14 @@ case class Finders(trench: ActorRef, timeout: Timeout, cache: CacheStore, mode: 
 
 
     pending find (_.state.single.get == Waiting) match {
-      case Some(scope) => self ! ResolveChallenge(scope.profileId, profileId, true); None
+      case Some(scope) => self ! ResolveChallenge(scope.profileId, profileId, true)
       case _ => {
         val state = Ref[FinderState](Waiting)
         val finder = context.actorOf(Props(classOf[Finder], trench, profile, timeout, state), profileId)
         // val finder = Finder(trench, profile, timeout, mode)
         context.watch(finder)
         pending += FinderScope(finder, profileId, state)
-        Some(finder)
+
 
       }
     }
@@ -90,7 +91,7 @@ case class Finders(trench: ActorRef, timeout: Timeout, cache: CacheStore, mode: 
 
   }
 
-  def receive = {
+  def receive = LoggingReceive {
 
     case Find(profileId) => newFinder(profileId)
 
@@ -106,20 +107,17 @@ case class Finders(trench: ActorRef, timeout: Timeout, cache: CacheStore, mode: 
       }
     }
 
-    case ApplyToFinder(opponentId: String, _) => {
-      pending.headOption map {
-        finder => {
-          log.info("Found a pending users, removing from queue and resolving Finder")
-          pending remove 0
-          stashed += finder
-          // update opponent state
-          finder.ref ! ChallengeRequested(opponentId)
+    case ApplyToFinder(opponentId: String, _) => pending.headOption match {
+      case Some(finder) => {
+        log.info("Found a pending users, removing from queue and resolving Finder")
+        pending remove 0
+        stashed += finder
+        // update opponent state
+        finder.ref ! ChallengeRequested(opponentId)
 
-        }
-      } orElse {
-        log.warning("No pending users waiting")
-        None
       }
+      case _ => log.warning("No pending users waiting")
+
     }
 
 
@@ -128,11 +126,23 @@ case class Finders(trench: ActorRef, timeout: Timeout, cache: CacheStore, mode: 
         val index = collection.map(_.ref).indexOf(ref)
         if (index > -1) collection.remove(index)
     }
-    case QueueFinder(ref) => if (!pending.map(_.ref).contains(ref)) {
+    case QueueFinder(ref) =>
       // pending += ref
-    } else log info s"Finder already in queue $ref"
+      stashed.find(_.ref == ref) match {
+        case Some(s) =>
+          stashed -= s
+          pending += s
+        case _ => log info s"Finder already in queue $ref"
+      }
+
     case DestroyFinder(profileId) => {
-      context.actorSelection(profileId) ! PoisonPill
+      context.child(profileId) match {
+        case Some(ref) =>
+          ref ! PoisonPill
+          log debug s"Send PoisonPill to $profileId"
+        case _ => log warning (s"No finder found for $profileId")
+      }
+
 
     }
   }
@@ -158,10 +168,10 @@ case class Finder(trench: ActorRef, profile: Profile, timeout: Timeout, state: R
 
 
   implicit val system = context.system
-  lazy val selection = ActorSelection(self, "")
+
   val scheduler = system.scheduler
 
-  val master = system.actorSelection("/user/battle_field")
+  val master = system.actorSelection("/user/battleField")
   private val alreadySeen = collection.mutable.ArrayBuffer.empty[String]
 
   def seen(profileId: String) = alreadySeen.contains(profileId)
@@ -178,7 +188,7 @@ case class Finder(trench: ActorRef, profile: Profile, timeout: Timeout, state: R
     super.preStart()
 
 
-    trench ! FindOpponent(creatorId, alreadySeen, Some((selection, profile)))
+    trench ! FindOpponent(creatorId, alreadySeen, Some((self, profile)))
     changeState(Waiting)
   }
 
@@ -200,41 +210,38 @@ case class Finder(trench: ActorRef, profile: Profile, timeout: Timeout, state: R
 
   }
 
-  private val actorRef = Connection.actorFor(creatorId)
+  private val connection = Connection(creatorId)
 
 
   var passed = 0
   private val countdown = scheduler.schedule(INTERVAL seconds, INTERVAL seconds) {
     passed += INTERVAL
     val msg: JsValue = Countdown(passed)
-    actorRef ! msg
+    connection ! msg
 
 
   }
 
 
   private val handle: Cancellable = scheduler.scheduleOnce(timeout.duration) {
-    countdown.cancel()
+    destroy
 
-    p.failure(FinderTimeout(creatorId))
+
+    p.tryFailure(FinderTimeout(creatorId))
 
   }
 
   def future = p.future
 
-  future onSuccess {
-    case _ => {
-      destroy
-
-    }
+  future onComplete {
+    case _ => destroy
   }
 
 
-  def receive = {
-
+  def receive = LoggingReceive {
 
     case ChallengeRequested(opponentId) => {
-      trench ! RequestChallenge(selection, profile, opponentId)
+      trench ! RequestChallenge(self, profile, opponentId)
       changeState(InFlight)
     }
     case ResolveChallenge(_, opponentId, accepted) => resolve(opponentId, accepted)
@@ -253,7 +260,7 @@ case class Finder(trench: ActorRef, profile: Profile, timeout: Timeout, state: R
 
     val profileId = profile.id
 
-    trench ! FindOpponent(profileId, alreadySeen, Some((selection, profile)))
+    trench ! FindOpponent(profileId, alreadySeen, Some((self, profile)))
     changeState(Waiting)
 
 

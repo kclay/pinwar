@@ -1,35 +1,27 @@
 package battle
 
-import play.api.libs.json._
-import akka.actor._
-import java.util.UUID
+import akka.actor.{Status, ActorRef, ActorLogging, Actor}
 import scala.concurrent.duration._
-
-
-import akka.pattern.{ask, pipe}
-import scala.concurrent._
-
-import utils.Worker
 import scala.Some
 import models.{ChallengeToken, War}
-import scala.util.Try
-
-
+import java.util.UUID
+import scala.concurrent.Future
+import play.api.libs.json.JsValue
+import akka.pattern._
+import akka.event.LoggingReceive
 
 /**
  * Created by IntelliJ IDEA.
  * User: Keyston
- * Date: 8/7/13
- * Time: 7:09 PM 
+ * Date: 8/28/13
+ * Time: 10:39 PM 
  */
-class BattleFieldWorker(ctx: BattleField, masterPath: ActorPath) extends Worker(masterPath) {
+
+case class WorkProcessor(ctx: BattleField) extends Actor with ActorLogging {
 
   import ctx._
 
   import utils.Serialization.Writes.throwable2Json
-
-
-  import scala.util.Failure
 
 
   import akka.util.Timeout
@@ -48,17 +40,18 @@ class BattleFieldWorker(ctx: BattleField, masterPath: ActorPath) extends Worker(
   def uid = UUID.randomUUID().toString
 
 
+  def receive = LoggingReceive {
+    case work: Any => doWork(sender, work)
+  }
+
   // Required to be implemented
   def doWork(workSender: ActorRef, work: Any): Unit = Future {
     processWork(workSender, work)
-    WorkComplete("done")
-  } pipeTo (self)
+
+  }
 
 
   def push(profileId: String, m: JsValue) = Connection(profileId) ! m
-
-
-  val ProfileId = "profile_([0-9]+)".r
 
 
   private def newInvite(profileId: String, email: String) = {
@@ -152,14 +145,10 @@ class BattleFieldWorker(ctx: BattleField, masterPath: ActorPath) extends Worker(
     case msg: ForWars => Wars ! msg
 
 
-    case d@Disconnect(profileId) => {
-
-
-    }
+    case Disconnect(profileId) => Trench ! RemoveUser(profileId)
     case _ => log.info("nothing")
 
 
   }
-
 
 }

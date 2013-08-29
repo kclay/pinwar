@@ -33,7 +33,6 @@ case class ChannelContext(actorPath: ActorPath, pending: Boolean = false, blackl
 
   def !(message: JsValue)(implicit system: ActorSystem) = system.actorSelection(actorPath) ! message
 
-  def !(message: AnyRef)(implicit system: ActorSystem) = system.actorSelection(actorPath) ! message
 
   def available = !pending && blacklisted.isEmpty
 
@@ -117,7 +116,7 @@ class BattleField {
 
   val activeWars = mutable.Map.empty[String, String]
 
-  val challengeTokens = mutable.Map.empty[String, ActorSelection]
+  val challengeTokens = mutable.Map.empty[String, ActorRef]
 
   val state = new TrenchState
 
@@ -131,23 +130,12 @@ class BattleField {
   val trench = Trench(this, currentMode)
   val finders = Finders(this)
 
+  val wars = Wars(this)
+
   def profileFor(profileId: String) = caches.profiles get profileId
 
-  def actorPath(name: String) = (ActorPath.fromString(
-    "akka://%s/user/%s".format(system.name, name)))
 
-
-  def battleRef(id: String) = system.actorSelection(actorPath(s"war_$id"))
-
-  def worker(name: String) = system.actorOf(Props(
-    new BattleFieldWorker(this, actorPath("battle_field"))), name = name)
-
-  private val numOfWorkers = 5
-  lazy val master = {
-    val _master = system.actorOf(Props[Master], name = "battle_field")
-    (1 to numOfWorkers).foreach(x => worker(s"worker_${x }"))
-    _master
-  }
+  lazy val master = system.actorOf(Props(classOf[WorkProcessor], this).withRouter(FromConfig()), name = "battleField")
   val findStrategy = DefaultFindStrategy(this)
 }
 

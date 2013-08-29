@@ -6,6 +6,9 @@ import play.api.libs.json.JsValue
 import akka.actor.Terminated
 import models.{PointContext, War}
 import java.util.concurrent.atomic.AtomicBoolean
+import utils.ActorCreator
+import scala.util.Failure
+import akka.routing.FromConfig
 
 /**
  * Created by IntelliJ IDEA.
@@ -14,10 +17,62 @@ import java.util.concurrent.atomic.AtomicBoolean
  * Time: 7:09 PM 
  */
 
+trait ForWars
+
+case class NewWar(profileId: String, opponentId: String) extends ForWars
 
 object WarBattle {
   def apply(war: War, creatorId: String, opponentId: String, creator: ActorPath, opponent: ActorPath)(implicit system: ActorSystem) = {
     new WarBattle(war, creatorId, opponentId, system.actorSelection(creator), system.actorSelection(opponent))
+  }
+}
+
+object Wars extends ActorCreator {
+
+
+  def props(bf: BattleField) = Props(classOf[Wars]).withRouter(FromConfig())
+}
+
+case class Wars() extends Actor with ActorLogging {
+
+  implicit val system = context.system
+
+  def receive = {
+    case action: WarAction =>
+      log info s"Passing WarAction $action"
+      context.child(action.war).foreach(_ ! action)
+
+    case NewWar(creatorId, opponentId) =>
+      log.info(s"New War request for $creatorId vs $opponentId")
+
+      val creator = Connection(creatorId)
+      val opponent = Connection(opponentId)
+
+      log.info("Found users creating war instance")
+      val war = War.create(creatorId, opponentId)
+      war map {
+        w =>
+
+          context.system.actorOf(Props(new WarBattle(w, creatorId, opponentId, creator, opponent)), name = w.id.get)
+
+
+          Finders ! DestroyFinder(opponentId)
+          Finders ! DestroyFinder(creatorId)
+          Trench ! RemoveInvite(opponentId)
+          Trench ! RemoveInvite(creatorId)
+          //watch(battle)
+          w
+
+      }
+
+
+
+
+      war match {
+        case Some(w) => sender ! w
+        case _ => sender ! Failure(new Error("Opponent wasn't found"))
+      }
+
   }
 }
 
@@ -30,6 +85,7 @@ class WarBattle(war: War, creatorId: String, opponentId: String, creator: ActorS
   import models.CacheStore.{instance => caches}
 
 
+  implicit val system = context.system
   val channels = Seq(creator, opponent)
 
   val pointsNeededToWin = war.rules.points
@@ -133,7 +189,7 @@ class WarBattle(war: War, creatorId: String, opponentId: String, creator: ActorS
     case a@WarAction(profileId, warId, action) if (!ended.get()) => {
 
 
-      log.debug(s"Recieved WarAction : $a coming from ${profileId}")
+      log.debug(s"Received WarAction : $a coming from ${profileId}")
 
 
 
