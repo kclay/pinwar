@@ -143,8 +143,7 @@ object War extends Controller with WithCors {
         case (profile, token) => {
           val already = profiles.filter(v => v \ "id" === profile.id or v \ "id" === profile.email)
           already(0) run match {
-            case Left(e: RethinkNoResultsError) => newSignup(profile, token)
-            case Left(e) => BadRequest("Unknown Error")
+            case Left(e) => newSignup(profile, token)
             case Right(p) => if (p.id == profile.id) {
               (signups get profile.id run).fold(x => BadRequest("Can't validate signup"), s => {
                 if (s.activated) Ok("activated") else sendSignupEmail(s, profile)
