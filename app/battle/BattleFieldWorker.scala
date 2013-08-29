@@ -107,7 +107,7 @@ class BattleFieldWorker(ctx: BattleField, masterPath: ActorPath) extends Worker(
     case Find(profileId) => {
 
       pendingFinders.find(_.creatorId == profileId) match {
-        case Some(_) => //  push(profileId,new Error(""))
+        case Some(_) => push(profileId, new Error("You already have a pending request active, wait till it expires."))
         case _ => {
           // update state
           trench :=+ profileId
