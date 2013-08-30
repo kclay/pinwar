@@ -111,6 +111,7 @@ object War extends Controller with WithCors {
 
   def newSignup(profile: Profile, token: Option[String] = None)(implicit rh: RequestHeader): SimpleResult = {
 
+    log debug (s"New Signup Request profile = $profile , token = $token")
     val p = token.map(caches.invites(_).map(e => profile.copy(email = e))).flatten.getOrElse(profile)
 
 
@@ -124,12 +125,12 @@ object War extends Controller with WithCors {
           else Some(Ok(""))
 
 
-          case Left(e) => Some(BadRequest)
+          case Left(e) => Some(BadRequest("Signup error"))
         }).get
 
 
       } else {
-        BadRequest
+        BadRequest("Unable to create your profile")
       }
 
     }
@@ -142,10 +143,9 @@ object War extends Controller with WithCors {
         case (profile, token) => {
           val already = profiles.filter(v => v \ "id" === profile.id or v \ "email" === profile.email)
           already(0) run match {
-            case Left(e: RethinkNoResultsError) => newSignup(profile, token)
-            case Left(e) => BadRequest("Unknown Error")
+            case Left(e) => newSignup(profile, token)
             case Right(p) => if (p.id == profile.id) {
-              (signups get profile.id run).fold(x => BadRequest(""), s => {
+              (signups get profile.id run).fold(x => BadRequest("Can't validate signup"), s => {
                 if (s.activated) Ok("activated") else sendSignupEmail(s, profile)
 
               })
@@ -193,6 +193,8 @@ object War extends Controller with WithCors {
                 }
 
                 profile = Some(a.profile)
+              } else {
+                watchedChannel push signupEvent
               }
 
               caches.invites(a.token) match {
