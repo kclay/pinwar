@@ -8,6 +8,7 @@ import models.War
 import java.util.UUID
 import scala.concurrent.Future
 import play.api.libs.json.JsValue
+import akka.event.LoggingReceive
 
 /**
  * Created by IntelliJ IDEA.
@@ -47,11 +48,11 @@ case class MessageProcessor(ctx: BattleField) extends Actor with ActorLogging {
 
   }
 
-  def receive = {
+  def receive = new LoggingReceive(Some(self), {
 
     case Terminated(actor) => actorTerminated(actor)
     case work: Any => doWork(sender, work)
-  }
+  })
 
 
   def push(profileId: String, m: JsValue) = ctxFor(profileId) map (_ ! m)
