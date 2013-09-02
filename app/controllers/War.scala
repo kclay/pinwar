@@ -218,8 +218,8 @@ object War extends Controller with WithCors {
             }     */
 
 
-            case Extractor.Invite(r) => master.ask(r)(Timeout(30, SECONDS)) onComplete {
-              case Success(token: String) => {
+            case Extractor.Invite(r) => master.ask(r)(Timeout(30, SECONDS)).mapTo[String] onComplete {
+              case Success(token) => {
 
                 val feedback = caches.invites(token).map {
                   _ => withFeedback(s"Invite for ${r.email} has already been sent")
@@ -234,6 +234,7 @@ object War extends Controller with WithCors {
 
                 watchedChannel push (feedback)
               }
+
               case Failure(e) => {
 
                 log error("Invite Failure", e)
