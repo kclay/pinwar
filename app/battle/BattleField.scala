@@ -19,6 +19,7 @@ import scala.Some
 import net.sf.ehcache.event.CacheEventListener
 import net.sf.ehcache.{Element, Ehcache}
 import utils.Master
+import akka.routing.FromConfig
 
 
 /**
@@ -149,15 +150,9 @@ class BattleField {
 
   def battleRef(id: String) = system.actorSelection(actorPath(s"war_$id"))
 
-  def worker(name: String) = system.actorOf(Props(
-    new BattleFieldWorker(this, actorPath("battle_field"))), name = name)
 
-  private val numOfWorkers = 5
-  lazy val master = {
-    val _master = system.actorOf(Props[Master], name = "battle_field")
-    (1 to numOfWorkers).foreach(x => worker(s"worker_${x }"))
-    _master
-  }
+  lazy val master = system.actorOf(Props(classOf[MessageProcessor], this).withRouter(FromConfig()), "battleField")
+
   val findStrategy = DefaultFindStrategy(this)
 }
 
